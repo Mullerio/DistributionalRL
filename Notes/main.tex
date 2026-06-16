@@ -1,0 +1,119 @@
+\documentclass[15pt]{article}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{lmodern}
+\usepackage{bm}
+\usepackage{scrextend}
+%\usepackage{showframe}
+\usepackage{calc}
+\usepackage{changepage}
+\usepackage{mdframed}
+\usepackage{dsfont}
+\usepackage{enumitem}
+\usepackage{pbox}
+\usepackage{setspace}
+\usepackage{stmaryrd}
+\usepackage{setspace}
+\usepackage[table]{xcolor}
+\usepackage{multicol}
+\usepackage{mathtools}
+\usepackage{hanging}
+\usepackage{longtable}
+\usepackage{aligned-overset}
+\usepackage{ntheorem}
+\usepackage{mdframed}
+\usepackage[theorems,breakable]{tcolorbox}%
+\usepackage[backend=bibtex,style=alphabetic]{biblatex}
+\addbibresource{lib.bib}
+
+\allowdisplaybreaks
+\hbadness=10000
+\makeatletter
+\renewcommand*\env@matrix[1][*\c@MaxMatrixCols c]{%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{#1}}
+
+\newcommand{\mathleft}{\@fleqntrue\@mathmargin10pt}
+\newcommand{\mathcenter}{\@fleqnfalse}
+\makeatother
+
+\newcommand*{\QED}{\hfill\ensuremath{\square}} 
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\p}{\mathcal{P}}
+\newcommand{\K}{\mathbb{K}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\la}{\langle}
+\newcommand{\ra}{\rangle}
+
+
+\newcommand{\bol}[1]{\mathbf{#1}}
+
+
+\newlength{\hangwidth}
+\newcommand{\newhang}[1]{\settowidth{\hangwidth}{#1}\par\hangpara{\hangwidth}{1}#1}
+
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+
+\def\Abstand{1cm}
+
+\newtcbtheorem[auto counter]{lemma}{Lemma}{%
+  theorem name and number,%
+        colframe=gray,%
+        fonttitle=\bfseries,
+        boxsep=5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    }{lem}
+
+\newtcbtheorem[auto counter]{theorem}{Theorem}{
+  theorem name and number,%
+        colframe=gray,%
+        fonttitle=\bfseries,
+        boxsep=5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    }{thm}
+
+\newtcbtheorem[auto counter]{definition}{Definition}{
+  theorem name and number,%
+      colframe=gray,%
+      fonttitle=\bfseries,
+      boxsep=5pt,
+      left=5pt, right=5pt, top=5pt, bottom=5pt
+  }{def}
+
+\title{Notes on Distributional Reinforcement Learning}
+\author{ }
+\date{}
+
+
+\begin{document}
+
+
+\maketitle
+
+\newlength\breite
+\setlength\breite{\linewidth-4pt}
+\setlength\fboxsep{0pt}
+\setlength\fboxrule{0.25pt}
+\setlength{\abovedisplayskip}{3mm} %Abstand OBEN zw. Text und Formel
+\setlength{\belowdisplayskip}{3mm} %Abstand OBEN zw. Text und Formel
+\setlength\itemsep{0pt}
+\setlength\parindent{0pt}
+
+
+\mathleft
+
+\section*{Preliminaries}
+
+These notes follow the modern treatment of distributional reinforcement learning
+in \cite{bellemare2023distributional}.
+
+\printbibliography
+
+\end{document}
