@@ -53,6 +53,9 @@
 \newcommand{\ra}{\rangle}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\1}{\mathds{1}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\T}{\mathcal{T}}
 
 
 \newcommand{\bol}[1]{\mathbf{#1}}
@@ -118,175 +121,262 @@ in \cite{bellemare2023distributional}.
 
 \section{Linear Function Approximation}
 
-Let $(S_t,A_t,R_{t+1},S_{t+1})_{t\geq 0}$ be the trajectory of a Markov decision
-process under a fixed policy $\pi$. For a discount factor $\gamma \in [0,1)$, the
-return is
-\[
-  G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}.
-\]
-The classical value function is the conditional mean of this random return:
-\[
-  v^\pi(s) = \E_\pi[G_t \mid S_t=s].
-\]
-Equivalently, it is the fixed point of the Bellman operator
-\[
-  (T^\pi v)(s)
-  =
-  \E_\pi\left[R_{t+1}+\gamma v(S_{t+1}) \mid S_t=s\right].
-\]
+Let $\X$ be the state space and $\A$ the action space. At time $t$, the agent is
+in state $X_t=x$, selects an action $A_t=a$, receives a reward $R_t$, and moves
+to a next state $X_{t+1}$. A policy $\pi$ maps states to distributions over
+actions, and a discount factor $\gamma\in[0,1)$ weights future rewards.
 
-In small finite state spaces one may store one value per state. In large or
-continuous state spaces this is impossible, so we approximate the value function
-from a feature map
+We first discuss linear approximation for the state-value function
 \[
-  \phi:\mathcal{S}\to \R^d,
+  V^\pi:\X\to\R.
+\]
+This is the cleanest setting because the input is only the state. Starting from
+$X_0=x$ and then following $\pi$, define the discounted return
+\[
+  G^\pi(x)
+  =
+  \sum_{t=0}^{\infty}\gamma^t R_t.
+\]
+The state-value function is the mean return:
+\[
+  V^\pi(x)
+  =
+  \E_\pi\left[G^\pi(x)\right].
+\]
+It is the fixed point of the Bellman operator $\T^\pi$, defined by
+\[
+  (\T^\pi V)(x)
+  =
+  \E_{A\sim\pi(\cdot\mid x)}
+  \left[
+    \E\left[
+      R+\gamma V(X^{\prime})
+      \mid X=x,A
+    \right]
+  \right].
+\]
+The Bellman equation is $V^\pi=\T^\pi V^\pi$.
+
+In a small finite state space, $V^\pi$ can be stored as a table with one number
+per state. Function approximation replaces this table by a parametric family. In
+linear function approximation we fix a feature map
+\[
+  \phi:\X\to\R^d,
   \qquad
-  \phi(s) =
+  \phi(x) =
   \begin{pmatrix}
-    \phi_1(s) \\ \vdots \\ \phi_d(s)
+    \phi_1(x) \\ \vdots \\ \phi_d(x)
   \end{pmatrix}.
 \]
-A linear value approximation has the form
+The approximate value function is
 \[
-  v_w(s) = \phi(s)^\top w,
+  V_w(x)=\phi(x)^\top w,
   \qquad w\in\R^d.
 \]
-The parameter vector $w$ is shared across states. Thus learning at one state can
-generalize to other states with similar features.
+The vector $w$ is shared across all states. Learning from one transition can
+therefore change predictions at other states with similar features.
 
-The temporal-difference error for a transition $(S_t,R_{t+1},S_{t+1})$ is
+For a sampled transition $(x_t,r_t,x^{\prime}_t)$, the TD error is
 \[
   \delta_t
   =
-  R_{t+1} + \gamma \phi(S_{t+1})^\top w_t
-  - \phi(S_t)^\top w_t.
+  r_t+\gamma V_{w_t}(x^{\prime}_t)-V_{w_t}(x_t).
 \]
-The semi-gradient TD(0) update is
+Since $V_w(x)=\phi(x)^\top w$, the semi-gradient TD update is
 \[
   w_{t+1}
   =
-  w_t + \alpha_t \delta_t \phi(S_t),
+  w_t+\alpha_t\delta_t\phi(x_t).
 \]
-where $\alpha_t>0$ is a step size. This update moves $v_{w_t}(S_t)$ toward the
-one-step bootstrap target
+The scalar target behind this update is
 \[
-  R_{t+1} + \gamma v_{w_t}(S_{t+1}).
+  r_t+\gamma V_{w_t}(x^{\prime}_t),
 \]
+so TD learning can be read as repeatedly making the current prediction
+$V_{w_t}(x_t)$ more consistent with a one-step Bellman target.
 
-The important point is that linear TD does not learn the full table
-$s\mapsto v(s)$. It learns a point in the linear function class
+The linear family is
 \[
   \mathcal{V}_\phi
   =
-  \{s\mapsto \phi(s)^\top w : w\in\R^d\}.
+  \{V_w : V_w(x)=\phi(x)^\top w,\ w\in\R^d\}.
 \]
-When the true value function is not in this class, the algorithm seeks a
-projected Bellman fixed point: roughly, the Bellman update is followed by a
-projection back onto the functions representable by the features. The quality of
-the approximation therefore depends strongly on the representation $\phi$.
+Usually $V^\pi\notin\mathcal{V}_\phi$. The Bellman update
+$\T^\pi V_w$ may leave the linear family, so the approximate problem is often
+understood through a projected Bellman equation
+\[
+  V_w = \Pi \T^\pi V_w,
+\]
+where $\Pi$ projects back onto $\mathcal{V}_\phi$ in a norm determined by the
+sampling distribution. The representation $\phi$ is therefore not a cosmetic
+choice: it determines which Bellman fixed points are even expressible.
+
+The same idea works for action-values
+\[
+  Q^\pi:\X\times\A\to\R.
+\]
+Now the feature map takes a state-action pair,
+\[
+  \phi:\X\times\A\to\R^d,
+\]
+and the approximation is
+\[
+  Q_w(x,a)=\phi(x,a)^\top w.
+\]
+The TD error for policy evaluation becomes
+\[
+  \delta_t
+  =
+  r_t+\gamma Q_{w_t}(x^{\prime}_t,a^{\prime}_t)-Q_{w_t}(x_t,a_t),
+  \qquad
+  a^{\prime}_t\sim\pi(\cdot\mid x^{\prime}_t),
+\]
+with update
+\[
+  w_{t+1}=w_t+\alpha_t\delta_t\phi(x_t,a_t).
+\]
+We will use this action-value version below because QR-DQN and the deep
+distributional algorithms are control methods: the agent must compare actions in
+the same state, and this comparison is immediate from $Q(x,a)$.
 
 \section{Distributional Value Approximation}
 
-Classical reinforcement learning compresses the return distribution to its mean.
-Distributional reinforcement learning keeps the random return itself. For a fixed
-policy $\pi$, define
+Distributional reinforcement learning replaces the scalar value function by a
+return-distribution function. Instead of storing only the mean
+$Q^\pi(x,a)=\E[G^\pi(x,a)]$, we keep the law of the return:
 \[
-  Z^\pi(s) \stackrel{D}{=} G_t \mid S_t=s,
-\]
-where $\stackrel{D}{=}$ denotes equality in distribution. Its expectation
-recovers the classical value:
-\[
-  v^\pi(s) = \E[Z^\pi(s)].
-\]
-The distributional Bellman operator is
-\[
-  (T^\pi Z)(s)
-  \stackrel{D}{=}
-  R_{t+1} + \gamma Z(S_{t+1}),
-  \qquad S_t=s.
-\]
-Thus the Bellman target is no longer a scalar. It is the distribution of a random
-reward plus a discounted next-state return distribution.
-
-To approximate distributions, one common choice is to represent each return
-distribution by its quantile function. For a real-valued random variable $Z$ with
-cumulative distribution function $F_Z$, its quantile function is
-\[
-  F_Z^{-1}(\tau)
+  \eta^\pi(x,a)
   =
-  \inf\{z\in\R : F_Z(z)\geq \tau\},
+  \operatorname{Law}\bigl(G^\pi(x,a)\bigr).
+\]
+Thus
+\[
+  \eta^\pi:\X\times\A\to\p(\R),
+\]
+where $\p(\R)$ denotes probability distributions on the real line. The classical
+action-value function is recovered by taking expectations:
+\[
+  Q^\pi(x,a)
+  =
+  \int_\R z\,\eta^\pi(x,a)(\mathrm{d}z).
+\]
+
+The distributional Bellman operator is most cleanly written using pushforwards.
+For $r\in\R$, define the affine map
+\[
+  f_{r,\gamma}(z)=r+\gamma z.
+\]
+If $\nu\in\p(\R)$, then $(f_{r,\gamma})_{\#}\nu$ is the distribution of
+$r+\gamma Z$ when $Z\sim\nu$. The distributional Bellman operator
+$\T^\pi$ maps a return-distribution function $\eta$ to
+\[
+  (\T^\pi\eta)(x,a)
+  =
+  \E\left[
+    (f_{R,\gamma})_{\#}\eta(X^{\prime},A^{\prime})
+    \mid X=x,A=a
+  \right],
+  \qquad A^{\prime}\sim\pi(\cdot\mid X^{\prime}).
+\]
+The expectation averages over the random reward, the next state, and the next
+action sampled from the policy.
+The distributional Bellman equation is
+\[
+  \eta^\pi=\T^\pi\eta^\pi.
+\]
+Taking means on both sides recovers the usual Bellman equation for $Q^\pi$, but
+the distributional equation is stronger: it describes the whole random return,
+not only its expectation.
+
+Just as linear TD restricts $Q$ to a class $\mathcal{Q}_\phi$, distributional
+methods restrict $\eta$ to a class of approximate distributions. The quantile
+family is one of the most important such choices. For a distribution $\nu$ with
+cumulative distribution function $F_\nu$, define its quantile function by
+\[
+  F_\nu^{-1}(\tau)
+  =
+  \inf\{z\in\R : F_\nu(z)\geq \tau\},
   \qquad \tau\in(0,1).
 \]
-Choose quantile levels
+Choose $N$ quantile levels, usually the midpoints
 \[
-  0 < \tau_1 < \cdots < \tau_N < 1.
+  \tau_i=\frac{2i-1}{2N},
+  \qquad i=1,\ldots,N.
 \]
-A quantile approximation represents the return distribution at state $s$ by
+An $N$-quantile approximation represents $\eta(x,a)$ by the empirical
+distribution
 \[
-  Z_\theta(s)
+  \eta_\theta(x,a)
   =
-  \frac{1}{N}\sum_{i=1}^N \delta_{\theta_i(s)},
+  \frac{1}{N}\sum_{i=1}^N \delta_{\theta_i(x,a)},
 \]
-where $\delta_x$ is a Dirac mass at $x$, and $\theta_i(s)$ is intended to
-approximate $F^{-1}_{Z^\pi(s)}(\tau_i)$.
+where $\delta_z$ is a Dirac mass at $z$. The parameter
+$\theta_i(x,a)$ is interpreted as the predicted $\tau_i$-quantile of the return
+distribution at $(x,a)$.
 
-With linear function approximation, each quantile location can be parameterized
-linearly:
+The direct distributional analogue of linear action-value approximation is to
+make each quantile location linear in the same feature vector:
 \[
-  \theta_i(s) = \phi(s)^\top w_i,
+  \theta_i(x,a)=\phi(x,a)^\top w_i,
   \qquad w_i\in\R^d.
 \]
-Equivalently, the parameters are
+Equivalently, with $W=(w_1,\ldots,w_N)\in\R^{d\times N}$,
 \[
-  W = (w_1,\ldots,w_N)\in\R^{d\times N}.
+  \eta_W(x,a)
+  =
+  \frac{1}{N}\sum_{i=1}^N
+  \delta_{\phi(x,a)^\top w_i}.
 \]
-This is the distributional analogue of linear value approximation: instead of
-one linear prediction for the mean return, we use several linear predictions for
-different parts of the return distribution.
+The scalar approximation $Q_w(x,a)$ has become a measure-valued approximation
+$\eta_W(x,a)$. The same features are now asked to explain not only the average
+return, but also the spread, asymmetry, and tail behavior of the return.
 
 \section{Quantile TD}
 
-Quantile TD is the temporal-difference idea applied to quantile
-representations. Given a transition
+Quantile TD applies temporal-difference learning to the quantile
+parameterization. For policy evaluation, sample a transition and next action
 \[
-  (S_t,R_{t+1},S_{t+1}),
+  (x_t,a_t,r_t,x^{\prime}_t,a^{\prime}_t),
+  \qquad a^{\prime}_t\sim\pi(\cdot\mid x^{\prime}_t).
 \]
-the one-step target samples are
+The distributional Bellman target is represented by the $N$ target atoms
 \[
   y_j
   =
-  R_{t+1} + \gamma \theta_j(S_{t+1}),
+  r_t+\gamma\theta_j(x^{\prime}_t,a^{\prime}_t),
   \qquad j=1,\ldots,N.
 \]
-For the current state, the predictions are
+The current prediction at $(x_t,a_t)$ has atoms
 \[
-  x_i = \theta_i(S_t),
+  z_i=\theta_i(x_t,a_t),
   \qquad i=1,\ldots,N.
 \]
-The quantile regression loss for quantile level $\tau$ is
+Quantile regression uses the asymmetric absolute loss
 \[
   \rho_\tau(u)
   =
   u\bigl(\tau-\1_{\{u<0\}}\bigr).
 \]
-For one transition, the distributional TD loss is commonly written as
+The empirical Quantile TD loss is then
 \[
   L(W)
   =
   \frac{1}{N}
   \sum_{i=1}^N
   \sum_{j=1}^N
-  \rho_{\tau_i}(y_j - x_i).
+  \rho_{\tau_i}(y_j-z_i).
 \]
-The residual $y_j-x_i$ compares a target quantile sample from the next-state
-distribution with a predicted quantile at the current state. Minimizing this
-loss moves the predicted quantiles of $Z_\theta(S_t)$ toward the Bellman-updated
-distribution
+The residual $y_j-z_i$ compares an atom of the Bellman target distribution with
+the predicted $\tau_i$-quantile at the current state-action pair. Minimizing this
+loss moves $\eta_W(x_t,a_t)$ toward
 \[
-  R_{t+1}+\gamma Z_\theta(S_{t+1}).
+  \frac{1}{N}\sum_{j=1}^N
+  \delta_{r_t+\gamma\theta_j(x^{\prime}_t,a^{\prime}_t)}
+  =
+  (f_{r_t,\gamma})_{\#}\eta_W(x^{\prime}_t,a^{\prime}_t).
 \]
 
-For linear quantiles, a subgradient update has the form
+For linear quantiles, a subgradient update for each head is
 \[
   w_{i,t+1}
   =
@@ -295,51 +385,289 @@ For linear quantiles, a subgradient update has the form
   \alpha_t
   \left(
     \frac{1}{N}\sum_{j=1}^N
-    \bigl(\tau_i-\1_{\{y_j < x_i\}}\bigr)
+    \bigl(\tau_i-\1_{\{y_j < z_i\}}\bigr)
   \right)
-  \phi(S_t),
+  \phi(x_t,a_t),
   \qquad i=1,\ldots,N.
 \]
-This mirrors ordinary TD:
+This is the exact analogue of the semi-gradient TD update:
 \[
-  \text{scalar TD error}
-  \quad \leadsto \quad
-  \text{quantile regression residuals}.
+  \delta_t
+  =
+  r_t+\gamma Q_{w_t}(x^{\prime}_t,a^{\prime}_t)-Q_{w_t}(x_t,a_t)
+  \quad\leadsto\quad
+  \{y_j-z_i\}_{i,j=1}^N.
 \]
-The scalar target $R+\gamma v(S^{\prime})$ is replaced by a target distribution
-$R+\gamma Z(S^{\prime})$, and the mean-squared TD objective is replaced by a quantile
-regression objective.
+The scalar TD target is replaced by a Bellman target distribution, and the
+single scalar TD error is replaced by all pairwise quantile residuals.
 
-In practice, the non-smooth loss $\rho_\tau$ is often replaced by a quantile
-Huber loss, which behaves quadratically near zero and linearly for large
-residuals. This improves numerical stability while preserving the asymmetric
-penalty that makes quantile regression estimate quantiles rather than means.
+In implementations, one often replaces $\rho_\tau$ by a quantile Huber loss.
+This is the smooth loss used in QR-DQN \cite{dabney2018quantile}. Define
+\[
+  \mathcal{L}_\kappa(u)
+  =
+  \begin{cases}
+    \frac{1}{2}u^2, & |u|\leq \kappa,\\
+    \kappa\left(|u|-\frac{1}{2}\kappa\right), & |u|>\kappa,
+  \end{cases}
+\]
+and
+\[
+  \rho_\tau^\kappa(u)
+  =
+  \left|\tau-\1_{\{u<0\}}\right|
+  \frac{\mathcal{L}_\kappa(u)}{\kappa}.
+\]
+The corresponding loss is
+\[
+  L_\kappa(W)
+  =
+  \frac{1}{N}
+  \sum_{i=1}^N
+  \sum_{j=1}^N
+  \rho_{\tau_i}^{\kappa}(y_j-z_i).
+\]
+The Huber version keeps the asymmetric quantile penalty but smooths the
+non-differentiability around zero, which is useful when the quantile locations
+are produced by a neural network.
+
+For control, the next action is usually selected greedily with respect to the
+mean of the predicted distribution:
+\[
+  a^*(x^{\prime})
+  \in
+  \arg\max_{a^{\prime}\in\A}
+  \frac{1}{N}\sum_{j=1}^N \theta_j(x^{\prime},a^{\prime}).
+\]
+The target atoms become
+\[
+  y_j=r+\gamma\theta_j(x^{\prime},a^*(x^{\prime})),
+  \qquad j=1,\ldots,N.
+\]
+This is the quantile analogue of replacing policy evaluation TD by Q-learning.
 
 \section{Gateway to Deep Representations}
 
-The linear setting separates two ideas:
+The linear approximation above separates representation and prediction:
 \[
-  \text{features } \phi(s)
+  \text{fixed features } \phi(x,a)
   \qquad\text{and}\qquad
-  \text{linear prediction heads } w_i.
+  \text{linear heads } w_i.
 \]
-Deep distributional reinforcement learning keeps this structure but learns the
-features. A neural network first maps the state to a learned representation
+This is the useful gateway into deep distributional reinforcement learning. The
+deep version keeps the same conceptual decomposition, but replaces the fixed
+feature map by a learned representation. A neural network maps the observation
+or state to a feature vector
 \[
-  h_\eta(s)\in\R^d,
+  \psi_\xi(x)\in\R^d,
 \]
-and then predicts either atom probabilities, quantile locations, or a sampled
-quantile function from that representation. In the quantile case one may write
+and the final layers produce a distributional prediction. In the quantile case
+one may write
 \[
-  \theta_i(s) = f_i(h_\eta(s)).
+  \theta_i(x,a;\omega)
+  =
+  f_i(\psi_\xi(x),a),
+  \qquad i=1,\ldots,N.
+\]
+The return-distribution approximation becomes
+\[
+  \eta_\omega(x,a)
+  =
+  \frac{1}{N}\sum_{i=1}^N
+  \delta_{\theta_i(x,a;\omega)}.
 \]
 
-This is the conceptual bridge to deep representations: the question is no longer
-only how to update a fixed set of quantiles, but also what representation makes
-return distributions easy to predict. The linear model asks, ``Which return
-distributions are expressible using these features?'' The deep model asks,
-``Can the agent learn features for which distributional prediction becomes
-simple?''
+The parameter $\omega$ includes both the representation parameters $\xi$ and the
+prediction heads. Linear Quantile TD is recovered as the special case in which
+$\psi_\xi$ is fixed and $f_i$ is linear. Deep quantile methods instead optimize
+all of $\omega$ by backpropagating through the distributional TD loss.
+
+\section{QR-DQN}
+
+QR-DQN is the deep control version of Quantile TD \cite{dabney2018quantile}. It
+uses a neural network to output $N$ quantile locations for each action:
+\[
+  \theta_i(x,a;\omega),
+  \qquad i=1,\ldots,N,\ a\in\A.
+\]
+For each state-action pair, the predicted return distribution is
+\[
+  \eta_\omega(x,a)
+  =
+  \frac{1}{N}\sum_{i=1}^N
+  \delta_{\theta_i(x,a;\omega)}.
+\]
+The predicted scalar action-value is the mean of this empirical distribution:
+\[
+  Q_\omega(x,a)
+  =
+  \frac{1}{N}\sum_{i=1}^N \theta_i(x,a;\omega).
+\]
+Thus QR-DQN can still choose greedy actions in the usual value-based way, but
+the value used for action selection is obtained by averaging the learned
+quantiles.
+
+As in DQN, QR-DQN uses two sets of parameters. The online network has parameters
+$\omega$ and is updated by gradient descent. The target network has parameters
+$\bar{\omega}$ and is held fixed for several updates before being copied from
+$\omega$. For a transition
+\[
+  (x,a,r,x^{\prime},d),
+\]
+where $d\in\{0,1\}$ indicates termination, the greedy next action is selected by
+the mean of the target-network distribution:
+\[
+  a^*(x^{\prime})
+  \in
+  \arg\max_{a^{\prime}\in\A}
+  \frac{1}{N}\sum_{j=1}^N
+  \theta_j(x^{\prime},a^{\prime};\bar{\omega}).
+\]
+The target quantile atoms are
+\[
+  y_j
+  =
+  r+\gamma(1-d)\theta_j(x^{\prime},a^*(x^{\prime});\bar{\omega}),
+  \qquad j=1,\ldots,N.
+\]
+The online prediction atoms for the sampled action are
+\[
+  z_i
+  =
+  \theta_i(x,a;\omega),
+  \qquad i=1,\ldots,N.
+\]
+QR-DQN minimizes the pairwise quantile Huber loss
+\[
+  L_{\mathrm{QR}}(\omega)
+  =
+  \frac{1}{N}
+  \sum_{i=1}^N
+  \sum_{j=1}^N
+  \rho_{\tau_i}^{\kappa}(y_j-z_i),
+\]
+with quantile levels
+\[
+  \tau_i=\frac{2i-1}{2N}.
+\]
+In a minibatch $\mathcal{B}$ sampled from replay memory, the objective is
+\[
+  \mathcal{L}_{\mathrm{QR}}(\omega)
+  =
+  \frac{1}{|\mathcal{B}|}
+  \sum_{(x,a,r,x^{\prime},d)\in\mathcal{B}}
+  L_{\mathrm{QR}}(\omega;x,a,r,x^{\prime},d).
+\]
+The target atoms are treated as constants when differentiating with respect to
+$\omega$; this is the usual semi-gradient idea inherited from TD learning and
+DQN.
+
+The quantile Huber loss is important because the raw quantile loss
+$\rho_\tau(u)$ is non-smooth at zero. QR-DQN uses
+\[
+  \mathcal{L}_\kappa(u)
+  =
+  \begin{cases}
+    \frac{1}{2}u^2, & |u|\leq \kappa,\\
+    \kappa\left(|u|-\frac{1}{2}\kappa\right), & |u|>\kappa,
+  \end{cases}
+\]
+and
+\[
+  \rho_\tau^\kappa(u)
+  =
+  \left|\tau-\1_{\{u<0\}}\right|
+  \frac{\mathcal{L}_\kappa(u)}{\kappa}.
+\]
+For small residuals, the loss has a squared-error shape, which gives smoother
+gradients. For large residuals, it grows linearly, which prevents very large TD
+errors from dominating the update. The factor
+$|\tau-\1_{\{u<0\}}|$ keeps the asymmetry needed for quantile regression:
+underestimation and overestimation are penalized differently depending on the
+quantile level $\tau$.
+
+\subsection*{How QR-DQN Relates to DQN}
+
+DQN learns one scalar per action:
+\[
+  x \mapsto \{Q_\omega(x,a):a\in\A\}.
+\]
+QR-DQN learns a collection of quantiles per action:
+\[
+  x \mapsto
+  \{\theta_i(x,a;\omega):i=1,\ldots,N,\ a\in\A\}.
+\]
+The scalar Bellman target
+\[
+  r+\gamma\max_{a^{\prime}}Q_{\bar{\omega}}(x^{\prime},a^{\prime})
+\]
+is replaced by the empirical target distribution
+\[
+  \frac{1}{N}\sum_{j=1}^N
+  \delta_{r+\gamma(1-d)\theta_j(x^{\prime},a^*(x^{\prime});\bar{\omega})}.
+\]
+The squared TD loss is replaced by the pairwise quantile Huber loss. Action
+selection remains risk-neutral unless we deliberately change it: QR-DQN chooses
+actions by the mean of the predicted quantiles. The learned object, however, is
+much richer than the mean.
+
+\subsection*{Representation Learning Signal}
+
+The representation $\psi_\xi(x)$ in QR-DQN is trained by many losses at once.
+For a single transition, the network sees all residuals
+\[
+  y_j-\theta_i(x,a;\omega),
+  \qquad i,j=1,\ldots,N.
+\]
+Lower quantile heads receive large gradients when the lower tail is poorly
+placed; upper quantile heads receive large gradients when the upper tail is
+poorly placed. Thus the shared representation is shaped not only by expected
+return, but by the whole geometry of the target return distribution.
+
+This gives a useful interpretation of the empirical strength of distributional
+methods. A scalar DQN representation only needs to make the conditional mean
+easy to predict. A QR-DQN representation must make many parts of the return
+distribution easy to predict simultaneously. The extra prediction problem can
+act as a richer training signal, even when the final policy is still selected by
+the mean.
+
+\section{Beyond Fixed Quantile Locations}
+
+QR-DQN fixes the quantile levels $\tau_1,\ldots,\tau_N$. Implicit Quantile
+Networks (IQN) generalize this idea by learning a function of the quantile level
+itself \cite{dabney2018implicit}. Instead of outputting only a finite list of
+quantile locations, IQN models
+\[
+  (x,a,\tau)\mapsto Z_\omega(x,a;\tau),
+  \qquad \tau\in(0,1).
+\]
+During training, quantile levels are sampled, for example
+\[
+  \tau_i,\tau^{\prime}_j\sim\mathcal{U}(0,1),
+\]
+and the same quantile Huber principle is applied to residuals
+\[
+  r+\gamma(1-d)Z_{\bar{\omega}}(x^{\prime},a^*;\tau^{\prime}_j)
+  -
+  Z_\omega(x,a;\tau_i).
+\]
+This makes the quantile function itself part of the model. The network must
+learn a representation of both the state and the quantile level. Conceptually,
+IQN moves from a finite set of quantile heads to a continuous return-distribution
+model.
+
+This is the natural gateway to deep representations. Chapter-level questions
+about deep distributional RL can be phrased as:
+\[
+  \text{What representation makes } \eta^\pi(x,a)
+  \text{ easy to approximate?}
+\]
+Linear Quantile TD answers this with fixed $\phi$ and linear quantile heads.
+QR-DQN replaces $\phi$ by a learned deep representation and keeps finitely many
+quantile heads. IQN goes one step further and makes the quantile level an input,
+so that the representation must support an entire quantile function. In all
+cases, the core idea is the same: approximate the distributional Bellman fixed
+point, not merely its expectation.
 
 \printbibliography
 
