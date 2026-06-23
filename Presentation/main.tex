@@ -3,21 +3,23 @@
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage{amsmath, amssymb, bm}
+\usepackage{amsmath,amssymb,bm}
 \usepackage{mathtools}
 \usepackage{dsfont}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning}
 
-\title[Distributional RL]{A Rough Introduction to Distributional Reinforcement Learning}
-\author[Jonas Muller]{Jonas Muller}
+\title[Distributional RL]{Distributional Reinforcement Learning | Part 2}
+\author[Jonas Müller]{Jonas Müller}
 \date{\today}
 
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\E}{\mathbb{E}}
-\newcommand{\Pbb}{\mathbb{P}}
-\newcommand{\cZ}{\mathcal{Z}}
-\newcommand{\cT}{\mathcal{T}}
+\newcommand{\Pcal}{\mathcal{P}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\T}{\mathcal{T}}
+\newcommand{\1}{\mathds{1}}
+\newcommand{\norm}[1]{\lVert#1\rVert}
 
 \begin{document}
 
@@ -29,160 +31,493 @@
   \tableofcontents
 \end{frame}
 
-\section{Motivation}
+\section{Recap}
 
-\begin{frame}{Why Distributional RL?}
-  \begin{itemize}
-    \item Classical RL tracks only the expected return: $Q(s,a) = \E[\sum_t \gamma^t r_t]$.
-    \item In many tasks, \textbf{uncertainty and tail behavior} matter.
-    \item Distributional RL models the full random return, not just its mean.
-    \item This often improves stability and empirical performance.
-  \end{itemize}
-  \vspace{0.3cm}
-  \textbf{Takeaway:} Value distributions contain useful learning signal.
-\end{frame}
-
-\begin{frame}{Quick RL Recap (for context)}
-  We assume an MDP with state $s$, action $a$, reward $r$, discount $\gamma \in [0,1)$.
-  \begin{itemize}
-    \item Policy: $\pi(a\mid s)$
-    \item Classical Bellman optimality equation:
-    \[
-      Q^*(s,a) = \E\left[r + \gamma \max_{a'} Q^*(s',a') \mid s,a\right]
-    \]
-    \item DQN approximates $Q^*(s,a)$ with a neural network.
-  \end{itemize}
-\end{frame}
-
-\section{Core Idea}
-
-\begin{frame}{Return Distribution Instead of Mean}
-  Define random return under policy $\pi$:
+\begin{frame}{Quick Recap}
+  As seen, for a finite MDP with policy $\pi$ and discount
+  $\gamma\in[0,1)$, we define
   \[
-    G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+    V^\pi(x)=\E[G^\pi(x)],
+    \qquad
+    \eta^\pi(x)=\operatorname{Law}(G^\pi(x)).
   \]
-  Distributional RL models:
+  The corresponding Bellman equations are
   \[
-    Z^{\pi}(s,a) \stackrel{D}{=} G_t \mid (S_t=s, A_t=a)
+    V^\pi=\T^\pi V^\pi,
+    \qquad
+    \eta^\pi=\T^\pi\eta^\pi,
   \]
-  where $\stackrel{D}{=}$ denotes equality in distribution.
-  \vspace{0.3cm}
+  As seen, return distributions can be represented categorically or through
+  quantiles and learned using CTD or QTD updates.
+  \begin{block}{Focus of this talk}
+    How do we share parameters across a very large state space, first with
+    fixed linear features and then with learned neural-network features?
+  \end{block}
+\end{frame}
 
-  Expected value is recovered by:
+\section{Linear Function Approximation}
+
+\begin{frame}{Function Approximation and Aliasing}
+  A tabular estimate has a separate parameter for every state. Function
+  approximation shares parameters across states.
+  \begin{itemize}
+    \item It makes large or continuous state spaces tractable.
+    \item It generalizes predictions to states not yet observed.
+    \item It also creates \alert{aliasing}: one parameter affects several states.
+  \end{itemize}
+  If aliased states require different predictions, no parameter choice is exact.
+  With bootstrapping, their approximation error can propagate to states that are
+  not themselves aliased.
+  \begin{block}{Two distinct approximations}
+    Distributional RL approximates both the output distribution and the mapping
+    from states to those distributions.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Linear Value Function Approximation}
+  A state representation is a map
   \[
-    Q^{\pi}(s,a) = \E[Z^{\pi}(s,a)]
+    \phi:\X\to\R^n,
+    \qquad
+    \phi(x)=(\phi_1(x),\ldots,\phi_n(x))^\top.
   \]
-\end{frame}
-
-\begin{frame}{Distributional Bellman Operator}
-  The distributional Bellman update is:
+  For weights $w\in\R^n$, the approximation is
   \[
-    (\cT^{\pi} Z)(s,a) \stackrel{D}{=} R(s,a) + \gamma Z(S',A')
+    V_w(x)=\phi(x)^\top w,
+    \qquad
+    \nabla_w V_w(x)=\phi(x).
   \]
-  with $A' \sim \pi(\cdot\mid S')$.
-
-  \vspace{0.2cm}
-  Optimal-control version:
+  For finite $\X$, stack feature rows into $\Phi\in\R^{|\X|\times n}$:
   \[
-    (\cT Z)(s,a) \stackrel{D}{=} R(s,a) + \gamma Z\bigl(S', a^*(S')\bigr)
+    V_w=\Phi w,
+    \qquad
+    \F_\phi=\{\Phi w:w\in\R^n\}.
   \]
-  where $a^*(S') = \arg\max_{a'} \E[Z(S',a')]$.
-
-  \vspace{0.3cm}
-  \textbf{Important:} Contraction properties depend on the metric (e.g. Wasserstein/Cramer).
+  For action values either use $\phi:\X\times\A\to\R^n$ and
+  $Q_w(x,a)=\phi(x,a)^\top w$, or shared $\phi(x)$ with per-action weights $w_a$.
 \end{frame}
 
-\section{Main Algorithms}
-
-\begin{frame}{C51 (Categorical DQN)}
-  Idea: represent each $Z(s,a)$ on fixed support atoms $\{z_i\}_{i=1}^N$.
-  \begin{itemize}
-    \item Network outputs probabilities over atoms per action.
-    \item Bellman target distribution is projected back to fixed support.
-    \item Training minimizes cross-entropy between predicted and projected target.
-  \end{itemize}
-
-  \vspace{0.2cm}
-  \textbf{Pros:} Simple, first major success.
-
-  \textbf{Limitations:} Fixed support can be restrictive.
-\end{frame}
-
-\begin{frame}{QR-DQN and IQN}
-  \textbf{QR-DQN (Quantile Regression DQN)}
-  \begin{itemize}
-    \item Learns quantile locations directly.
-    \item Uses quantile Huber loss.
-  \end{itemize}
-
-  \vspace{0.2cm}
-  \textbf{IQN (Implicit Quantile Networks)}
-  \begin{itemize}
-    \item Learns a continuous quantile function $F_Z^{-1}(\tau)$.
-    \item Samples $\tau \sim \mathcal{U}(0,1)$ during training/inference.
-  \end{itemize}
-
-  \vspace{0.3cm}
-  \textbf{Rule of thumb:} QR-DQN and IQN are often stronger baselines than C51.
-\end{frame}
-
-\section{Practical View}
-
-\begin{frame}{Why It Works in Practice (High-level)}
-  \begin{itemize}
-    \item Richer target than scalar TD target.
-    \item Better gradient signal from multiple quantiles/atoms.
-    \item Improved robustness in stochastic environments.
-    \item Natural bridge to risk-sensitive control.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Risk-sensitive Decision Making}
-  Once we estimate $Z(s,a)$, we can optimize objectives beyond expectation:
-  \begin{itemize}
-    \item Mean (risk-neutral): $\E[Z]$
-    \item CVaR / lower quantiles (risk-averse)
-    \item Upper quantiles (risk-seeking)
-  \end{itemize}
-
-  \vspace{0.3cm}
-  Example objective:
+\begin{frame}{The Best Linear Approximation}
+  Choose a state-weighting distribution $\xi\in\Pcal(\X)$ and define
   \[
-    a^*(s) = \arg\max_a \operatorname{CVaR}_{\alpha}(Z(s,a))
+    \norm{V-V'}_{\xi,2}
+    =\left(\sum_{x\in\X}\xi(x)(V(x)-V'(x))^2\right)^{1/2}.
+  \]
+  The representation problem is
+  \[
+    \min_{w\in\R^n}\norm{V^\pi-V_w}_{\xi,2}.
+  \]
+  With $\Xi=\operatorname{diag}(\xi(x):x\in\X)$, full support of $\xi$, and
+  linearly independent columns of $\Phi$, the unique solution is
+  \[
+    w^*=(\Phi^\top\Xi\Phi)^{-1}\Phi^\top\Xi V^\pi.
+  \]
+  The choice of $\xi$ says which states matter most; it is part of the
+  approximation problem, not a harmless implementation detail.
+\end{frame}
+
+\begin{frame}{Projection Back into the Feature Space}
+  In general, $V\in\F_\phi$ does not imply $\T^\pi V\in\F_\phi$.
+  Define the weighted orthogonal projection
+  \[
+    (\Pi_{\phi,\xi}V)(x)=\phi(x)^\top w^*,
+    \qquad
+    w^*\in\arg\min_w\norm{V-V_w}_{\xi,2}.
+  \]
+  Approximate dynamic programming therefore iterates
+  \[
+    V_{k+1}=\Pi_{\phi,\xi}\T^\pi V_k.
+  \]
+  \begin{itemize}
+    \item $\T^\pi$ performs the Bellman update.
+    \item $\Pi_{\phi,\xi}$ removes components that the features cannot express.
+    \item Repeated projection can compound error (the diffusion effect).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{When Is the Projected Operator Stable?}
+  Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$.
+  Then both $P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in the
+  $\xi_\pi$-weighted $L_2$ norm. Hence
+  \[
+    \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
+    \Pi_{\phi,\xi_\pi}\T^\pi V'}_{\xi_\pi,2}
+    \leq\gamma\norm{V-V'}_{\xi_\pi,2}.
+  \]
+  It has a unique fixed point
+  \[
+    \widehat V^\pi=\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi,
+  \]
+  with error bound
+  \[
+    \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}
+    \leq\frac{1}{\sqrt{1-\gamma^2}}
+    \norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}.
   \]
 \end{frame}
 
-\section{Template Slides To Fill}
+\begin{frame}{Monte Carlo as Stochastic Gradient Descent}
+  Given independent state--return samples $(x_k,g_k)$, use the sample loss
+  \[
+    L(w)=\bigl(g_k-\phi(x_k)^\top w\bigr)^2.
+  \]
+  Absorbing the factor $2$ into the step size gives
+  \[
+    w\leftarrow w+alpha_k
+    \bigl(g_k-\phi(x_k)^\top w\bigr)\phi(x_k).
+  \]
+  This is genuine stochastic gradient descent: the target $g_k$ does not depend
+  on $w$. Under standard sampling and step-size conditions, it approaches the
+  weighted least-squares solution.
+\end{frame}
 
-\begin{frame}{Experiment Setup (TODO)}
-  \textbf{Fill this slide with your own setup.}
+\begin{frame}{Semi-Gradient Temporal-Difference Learning}
+  For a transition $(x_k,a_k,r_k,x'_k)$, replace the Monte Carlo return by
+  the bootstrapped target
+  \[
+    r_k+\gamma V_w(x'_k)=r_k+\gamma\phi(x'_k)^\top w.
+  \]
+  The update is
+  \[
+    w\leftarrow w+\alpha_k
+    \underbrace{\bigl(r_k+\gamma\phi(x'_k)^\top w-\phi(x_k)^\top w\bigr)}
+    _{\text{TD error}}
+    \phi(x_k).
+  \]
+  It is a \emph{semi}-gradient: while differentiating, the target is treated as
+  fixed. Differentiating the full squared Bellman error would also produce a
+  term involving $\phi(x'_k)$.
+\end{frame}
+
+\begin{frame}{Target Weights Explain the Projection Connection}
+  Freeze a second vector $\widetilde w$ inside the target:
+  \[
+    w\leftarrow w+\alpha_k
+    \bigl(r_k+\gamma\phi(x'_k)^\top\widetilde w-\phi(x_k)^\top w\bigr)
+    \phi(x_k).
+  \]
+  This is SGD on a fixed-target loss and approximately computes one projected
+  Bellman step:
+  \[
+    \Phi w^*=\Pi_{\phi,\xi}\T^\pi V_{\widetilde w}.
+  \]
+  Setting $\widetilde w=w$ recovers ordinary semi-gradient TD, but also creates
+  a feedback loop. Function approximation, bootstrapping, and an unsuitable
+  sampling distribution can then produce divergence (Baird's counterexample).
+\end{frame}
+
+\begin{frame}{Why ``Linear Distribution'' Needs Care}
+  Probability distributions do not form a vector space:
+  \[
+    \eta_{w_1+w_2}(x)\neq\eta_{w_1}(x)+\eta_{w_2}(x)
+  \]
+  because the right side has total mass $2$.
+  \begin{block}{Book's convention}
+    ``Linear'' distributional approximation means that the \emph{parameters of
+    a probability representation} depend linearly on features.
+  \end{block}
+  There are therefore two approximation layers:
+  \begin{enumerate}
+    \item a finite probability representation (categorical or quantile),
+    \item feature aliasing across states.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Linear Quantile TD: Representation and Loss}
+  With $m$ quantile locations and weights $w_1,\ldots,w_m\in\R^n$,
+  \[
+    \eta_w(x)=\frac1m\sum_{i=1}^m\delta_{\phi(x)^\top w_i},
+    \qquad
+    \tau_i=\frac{2i-1}{2m}.
+  \]
+  Define the quantile loss
+  \[
+    \rho_\tau(\Delta)=\left|\1_{\{\Delta<0\}}-\tau\right||\Delta|.
+  \]
+  For one target $z$, head $i$ uses
+  \[
+    L_{\tau_i}(w_i)=\rho_{\tau_i}\bigl(z-\phi(x)^\top w_i\bigr),
+  \]
+  whose subgradient is proportional to
+  $-(\tau_i-\1_{\{z<\phi(x)^\top w_i\}})\phi(x)$.
+\end{frame}
+
+\begin{frame}{Linear QTD: Distributional Semi-Gradient}
+  A transition $(x,a,r,x')$ supplies $m$ target samples
+  \[
+    g_j=r+\gamma\phi(x')^\top w_j,
+    \qquad j=1,\ldots,m.
+  \]
+  Averaging the quantile subgradient over these targets yields
+  \[
+    w_i\leftarrow w_i+\alpha\frac1m\sum_{j=1}^m
+    \underbrace{\left(\tau_i-
+    \1_{\{g_j<\phi(x)^\top w_i\}}\right)}_{\text{quantile TD error}}
+    \phi(x).
+  \]
+  As in scalar TD, $g_j$ is treated as constant during differentiation.
+  Unlike the scalar TD error, each averaged quantile error is bounded.
+\end{frame}
+
+\begin{frame}{Linear Categorical TD: Prediction}
+  Fix support locations $\theta_1<\cdots<\theta_m$. Linear logits are
+  transformed into probabilities by a softmax:
+  \[
+    p_i(x;w)=
+    \frac{\exp(\phi(x)^\top w_i)}
+         {\sum_{j=1}^m\exp(\phi(x)^\top w_j)},
+    \qquad
+    \eta_w(x)=\sum_{i=1}^m p_i(x;w)\delta_{\theta_i}.
+  \]
+  The softmax is essential: arbitrary linear coefficients need not be
+  nonnegative or sum to one.
+\end{frame}
+
+\begin{frame}{Linear CTD: Target, Loss, and Update}
+  Project the Bellman-updated next distribution back to the fixed support:
+  \[
+    \bar\eta(x)=\Pi_c(b_{r,\gamma})_\#\eta_w(x')
+    =\sum_{i=1}^m\bar p_i\delta_{\theta_i}.
+  \]
+  Cross-entropy is the matching loss for softmax probabilities:
+  \[
+    L(w)=-\sum_{i=1}^m\bar p_i\log p_i(x;w).
+  \]
+  Its semi-gradient update has the same template as linear TD and QTD:
+  \[
+    w_i\leftarrow w_i+alpha
+    \underbrace{(\bar p_i-p_i(x;w))}_{\text{CTD error}}\phi(x).
+  \]
+  Thus all three methods have the form $w_i\leftarrow w_i+\alpha\varepsilon_i\phi(x)$.
+\end{frame}
+
+\section{Deep Distributional Reinforcement Learning}
+
+\begin{frame}{From Fixed Features to Learned Features}
+  A deep network replaces the hand-designed map $\phi(x)$ by a learned
+  representation. Its penultimate layer can still be read as
+  \[
+    \phi_w(x)\in\R^n,
+  \]
+  followed by linear prediction heads.
   \begin{itemize}
-    \item Environment(s): \emph{e.g. CartPole, Atari, custom task}
-    \item Algorithms compared: \emph{DQN, C51, QR-DQN, IQN}
-    \item Training budget: \emph{steps, seeds, hardware}
-    \item Metrics: \emph{return mean, variance, worst-case score}
+    \item Earlier layers learn which state distinctions matter.
+    \item Final layers map those features to values or distribution parameters.
+    \item Backpropagation updates both simultaneously.
+  \end{itemize}
+  Linear approximation is therefore not discarded; it remains the final layer
+  and the conceptual model for the deep semi-gradient update.
+\end{frame}
+
+\begin{frame}{DQN: Prediction, Behavior, and Experience}
+  DQN maps an observation $x$ to one value per action:
+  \[
+    Q_w(x,a),\qquad a\in\A.
+  \]
+  In the canonical Atari setup:
+  \begin{itemize}
+    \item four preprocessed $84\times84$ frames form the network input;
+    \item convolutional layers and a fully connected layer produce 512 features;
+    \item a linear output layer produces $|\A|$ action values;
+    \item an $\varepsilon$-greedy policy acts from $Q_w$;
+    \item transitions are stored and resampled from replay memory.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Results (TODO)}
-  \textbf{Replace with plots/tables.}
+\begin{frame}{DQN: Semi-Gradient Learning}
+  With online weights $w$, target weights $\widetilde w$, and transition
+  $(x,a,r,x')$, define
+  \[
+    y=r+\gamma\max_{a'\in\A}Q_{\widetilde w}(x',a').
+  \]
+  The squared loss and semi-gradient update are
+  \[
+    L(w)=(y-Q_w(x,a))^2,
+  \]
+  \[
+    w\leftarrow w+\alpha(y-Q_w(x,a))\nabla_wQ_w(x,a).
+  \]
+  If $Q_w(x,a)=\phi(x,a)^\top w$, then $\nabla_wQ_w=\phi$: this is exactly
+  the linear update. Replay reduces temporal correlation; the frozen target
+  network slows the moving-target feedback loop.
+\end{frame}
+
+\begin{frame}{Distributional Network Output}
+  Deep distributional RL changes the output from one scalar per action to
+  $m$ distribution parameters per action:
+  \[
+    x\longmapsto\R^{|\A|\times m}.
+  \]
+  The interpretation determines the algorithm:
   \begin{itemize}
-    \item Learning curves
-    \item Distribution snapshots over training
-    \item Ablations (atoms/quantiles, learning rate, etc.)
+    \item \textbf{C51:} fixed locations, learned softmax probabilities;
+    \item \textbf{QR-DQN:} equal probabilities, learned quantile locations;
+    \item \textbf{IQN:} quantile level $\tau$ becomes an additional input.
   \end{itemize}
+  Behavior is usually risk-neutral: derive $Q_w(x,a)$ from the predicted
+  distribution and do $\varepsilon$-greedy action selection as in DQN.
+\end{frame}
+
+\begin{frame}{C51: Prediction and Behavior}
+  For fixed $\theta_1<\cdots<\theta_m$, the network outputs logits
+  $\varphi_i(x,a;w)$ and
+  \[
+    p_i(x,a;w)=\frac{e^{\varphi_i(x,a;w)}}
+    {\sum_{j=1}^m e^{\varphi_j(x,a;w)}},
+    \qquad
+    \eta_w(x,a)=\sum_{i=1}^mp_i(x,a;w)\delta_{\theta_i}.
+  \]
+  The induced action value is
+  \[
+    Q_w(x,a)=\sum_{i=1}^mp_i(x,a;w)\theta_i.
+  \]
+  Original C51 uses $m=51$ evenly spaced locations; support choice imposes an
+  important inductive bias because projected targets outside it are clipped.
+\end{frame}
+
+\begin{frame}{C51: Bellman Target and Cross-Entropy}
+  Select the target-network greedy action
+  \[
+    a_{\widetilde w}(x')\in\arg\max_{a'}Q_{\widetilde w}(x',a').
+  \]
+  Construct and project the target
+  \[
+    \bar\eta(x,a)=
+    \Pi_c(b_{r,\gamma})_\#\eta_{\widetilde w}
+    (x',a_{\widetilde w}(x'))
+    =\sum_{j=1}^m\bar p_j\delta_{\theta_j}.
+  \]
+  Then minimize
+  \[
+    L(w)=-\sum_{j=1}^m\bar p_j\log p_j(x,a;w).
+  \]
+  This is the nonlinear analogue of linear CTD, except shared early-layer
+  weights influence all particles and cannot be updated independently.
+\end{frame}
+
+\begin{frame}{QR-DQN: Quantile Prediction}
+  QR-DQN interprets the $m$ outputs as locations of an equally weighted
+  quantile distribution:
+  \[
+    \eta_w(x,a)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x,a;w)},
+    \qquad
+    Q_w(x,a)=\frac1m\sum_{i=1}^m\theta_i(x,a;w).
+  \]
+  With $a_{\widetilde w}(x')$ greedy by this mean, the pairwise residuals are
+  \[
+    \Delta_{ij}=r+\gamma\theta_j(x',a_{\widetilde w}(x');\widetilde w)
+    -\theta_i(x,a;w).
+  \]
+  Every predicted quantile is compared with every target quantile.
+\end{frame}
+
+\begin{frame}{QR-DQN: Quantile Huber Loss}
+  For $\tau_i=(2i-1)/(2m)$, QR-DQN minimizes
+  \[
+    L(w)=\frac1m\sum_{i,j=1}^m\rho^H_{\tau_i}(\Delta_{ij}),
+    \qquad
+    \rho^H_\tau(u)=|\1_{\{u<0\}}-\tau|H_1(u),
+  \]
+  where
+  \[
+    H_1(u)=
+    \begin{cases}
+      \frac12u^2,&|u|\leq1,\\
+      |u|-\frac12,&|u|>1.
+    \end{cases}
+  \]
+  The quantile asymmetry places different heads at different parts of the
+  distribution; the Huber transition gives smooth small-error gradients and
+  limits the influence of large errors.
+\end{frame}
+
+\begin{frame}{IQN: Make the Quantile Level an Input}
+  C51 and QR-DQN output a fixed finite parameter vector. IQN instead models
+  the quantile function itself:
+  \[
+    (x,a,\tau)\longmapsto
+    \theta_w(x,a,\tau)\approx F^{-1}_{\eta(x,a)}(\tau).
+  \]
+  The level is encoded by
+  \[
+    \varphi(\tau)=(\cos(\pi\tau i))_{i=0}^{M-1},
+  \]
+  transformed by a fully connected layer, and combined multiplicatively with
+  the state features. The final action heads satisfy
+  \[
+    \theta_w(x,a,\tau)=\phi_w(x,\tau)^\top w_a.
+  \]
+\end{frame}
+
+\begin{frame}{IQN: Behavior and Learning}
+  Approximate the mean with independent $\tau_i\sim\mathcal U(0,1)$:
+  \[
+    Q_w(x,a)\approx\frac1m\sum_{i=1}^m\theta_w(x,a,\tau_i).
+  \]
+  For independent online levels $\tau_i$ and target levels $\tau'_j$, minimize
+  pairwise losses of
+  \[
+    r+\gamma\theta_{\widetilde w}
+      (x',a_{\widetilde w}(x'),\tau'_j)
+    -\theta_w(x,a,\tau_i).
+  \]
+  Sampling many level pairs reduces gradient variance. IQN approximates the
+  whole quantile function without committing to fixed output locations.
+\end{frame}
+
+\begin{frame}{IQN Makes Risk Sensitivity Simple}
+  Risk-neutral behavior samples $\tau\sim\mathcal U(0,1)$. Lower-tail CVaR at
+  level $\bar\tau$ is
+  \[
+    \operatorname{CVaR}_{\bar\tau}(G_w(x,a))
+    =\frac1{\bar\tau}\int_0^{\bar\tau}\theta_w(x,a,\tau)\,d\tau.
+  \]
+  Approximate it by changing only the sampling distribution:
+  \[
+    \operatorname{CVaR}_{\bar\tau}(G_w(x,a))
+    \approx\frac1m\sum_{i=1}^m\theta_w(x,a,\tau_i),
+    \quad \tau_i\sim\mathcal U(0,\bar\tau).
+  \]
+  Thus an implicit representation separates learning the return distribution
+  from choosing how that distribution should guide behavior.
+\end{frame}
+
+\begin{frame}{How Distributional Predictions Shape Features}
+  Split the network into learned features and final prediction heads.
+  \begin{itemize}
+    \item DQN trains the representation to predict one conditional mean per action.
+    \item C51 trains it through $m$ probability errors per action.
+    \item QR-DQN/IQN train it through many pairwise quantile residuals.
+  \end{itemize}
+  The type and number of predictions therefore change the learned state
+  representation. This richer auxiliary prediction problem is a leading
+  explanation for improved control performance even when actions are ultimately
+  selected by the mean.
 \end{frame}
 
 
+\begin{frame}{Takeaways}
+  \begin{enumerate}
+    \item Linear approximation introduces state aliasing and a weighted projection
+      problem; the sampling distribution is central to stability.
+    \item Semi-gradient TD tracks a projected Bellman process, and target weights
+      make that relationship explicit.
+    \item Linear QTD and CTD make distribution \emph{parameters} linear in features.
+    \item Deep methods learn the features and retain the same prediction--target--
+      semi-gradient structure.
+    \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
+      output distribution; that choice also shapes the learned representation.
+  \end{enumerate}
+\end{frame}
 
 \begin{frame}{References}
   \footnotesize
   \begin{itemize}
-    \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on RL.
-    \item Dabney et al. (2018): Distributional RL with Quantile Regression.
-    \item Dabney et al. (2018): Implicit Quantile Networks for Distributional RL.
+    \item Bellemare, Dabney, Rowland (2023): \emph{Distributional Reinforcement Learning}, Chapters 9--10.
+    \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on Reinforcement Learning.
+    \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
+    \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
   \end{itemize}
 \end{frame}
-
 
 \end{document}

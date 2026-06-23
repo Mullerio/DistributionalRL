@@ -1,4 +1,4 @@
-\documentclass[15pt]{article}
+\documentclass[12pt]{article}
 \usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -56,6 +56,10 @@
 \newcommand{\X}{\mathcal{X}}
 \newcommand{\A}{\mathcal{A}}
 \newcommand{\T}{\mathcal{T}}
+<<<<<<< HEAD
+=======
+\newcommand{\F}{\mathcal{F}}
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
 
 
 \newcommand{\bol}[1]{\mathbf{#1}}
@@ -121,10 +125,18 @@ in \cite{bellemare2023distributional}.
 
 \section{Linear Function Approximation}
 
+<<<<<<< HEAD
 Let $\X$ be the state space and $\A$ the action space. At time $t$, the agent is
 in state $X_t=x$, selects an action $A_t=a$, receives a reward $R_t$, and moves
 to a next state $X_{t+1}$. A policy $\pi$ maps states to distributions over
 actions, and a discount factor $\gamma\in[0,1)$ weights future rewards.
+=======
+This section follows Chapter 9 of \cite{bellemare2023distributional}. Let $\X$
+be a finite, possibly very large state space. At time $t$, the agent is in state
+$X_t=x$, selects $A_t=a$, receives $R_t$, and moves to $X_{t+1}$. A policy
+$\pi$ maps states to distributions over actions and $\gamma\in[0,1)$ is the
+discount factor.
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
 
 We first discuss linear approximation for the state-value function
 \[
@@ -156,6 +168,7 @@ It is the fixed point of the Bellman operator $\T^\pi$, defined by
   \right].
 \]
 The Bellman equation is $V^\pi=\T^\pi V^\pi$.
+<<<<<<< HEAD
 
 In a small finite state space, $V^\pi$ can be stored as a table with one number
 per state. Function approximation replaces this table by a parametric family. In
@@ -196,9 +209,125 @@ so TD learning can be read as repeatedly making the current prediction
 $V_{w_t}(x_t)$ more consistent with a one-step Bellman target.
 
 The linear family is
+=======
+
+\subsection{Function Approximation and Aliasing}
+
+In a small state space, $V^\pi$ can be stored as a table with one number per
+state. Function approximation instead shares parameters across states. This is
+necessary when $\X$ cannot be enumerated and it permits generalization to states
+not yet observed. The cost is \emph{aliasing}: a shared parameter changes the
+prediction at several states. If two aliased states require different values,
+no parameter vector represents both exactly. With bootstrapping, the resulting
+error may propagate to states that are not themselves aliased.
+
+\begin{definition}{State representation and linear value approximation}{}
+Let $n\in\N$. A state representation is a mapping
 \[
-  \mathcal{V}_\phi
+  \phi:\X\to\R^n,
+  \qquad
+  \phi(x) =
+  \begin{pmatrix}
+    \phi_1(x) \\ \vdots \\ \phi_n(x)
+  \end{pmatrix}.
+\]
+For $w\in\R^n$, the linear value function approximation is
+\[
+  V_w(x)=\phi(x)^\top w,
+\]
+where each $\phi_i$ is a basis function and $\phi_i(x)$ is a feature.
+\end{definition}
+
+The model is linear in its weights and
+\[
+  V_{\alpha w_1+\beta w_2}=\alpha V_{w_1}+\beta V_{w_2},
+  \qquad \nabla_w V_w(x)=\phi(x).
+\]
+For finite $\X$, collect the row vectors $\phi(x)^\top$ in a feature matrix
+$\Phi\in\R^{|\X|\times n}$. Then
+\[
+  V_w=\Phi w,
+  \qquad
+  \F_\phi=\{\Phi w:w\in\R^n\}.
+\]
+
+For action values, either take $\phi:\X\times\A\to\R^n$ and
+$Q_w(x,a)=\phi(x,a)^\top w$, or use a common state representation with one
+weight vector per action, $Q_w(x,a)=\phi(x)^\top w_a$.
+
+\subsection{Optimal Approximation in a Weighted Norm}
+
+Let $\xi\in\p(\X)$ express the relative importance of the states. Define
+\[
+  \norm{V-V^{\prime}}_{\xi,2}
+  =\left(\sum_{x\in\X}\xi(x)(V(x)-V^{\prime}(x))^2\right)^{1/2}.
+\]
+The best approximation to $V^\pi$ solves
+\[
+  \min_{w\in\R^n}\norm{V^\pi-V_w}_{\xi,2}.
+\]
+Let $\Xi=\operatorname{diag}(\xi(x):x\in\X)$. If $\xi$ has full support and
+the columns of $\Phi$ are linearly independent, the unique solution is
+\[
+  w^*=(\Phi^\top\Xi\Phi)^{-1}\Phi^\top\Xi V^\pi.
+\]
+Thus the state weighting $\xi$ is part of the approximation problem: changing
+how often states are sampled generally changes the best attainable weights.
+
+\subsection{The Projected Bellman Operator}
+
+In general, $V\in\F_\phi$ does not imply $\T^\pi V\in\F_\phi$. Define the
+weighted orthogonal projection $\Pi_{\phi,\xi}$ by
+\[
+  (\Pi_{\phi,\xi}V)(x)=\phi(x)^\top w^*,
+  \qquad
+  w^*\in\arg\min_{w\in\R^n}\norm{V-V_w}_{\xi,2}.
+\]
+Approximate dynamic programming iterates
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
+\[
+  V_{k+1}=\Pi_{\phi,\xi}\T^\pi V_k.
+\]
+Projection removes the component of the Bellman update that the features cannot
+represent. Repeated projection can compound approximation error.
+
+Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$. Then
+$P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in the
+$\xi_\pi$-weighted $L_2$ norm. Consequently,
+\[
+  \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
+  \Pi_{\phi,\xi_\pi}\T^\pi V^{\prime}}_{\xi_\pi,2}
+  \leq \gamma\norm{V-V^{\prime}}_{\xi_\pi,2}.
+\]
+The projected operator has a unique fixed point
+\[
+  \widehat V^\pi
+  =\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi,
+\]
+and the book's sharper orthogonal-projection argument gives
+\[
+  \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}
+  \leq\frac{1}{\sqrt{1-\gamma^2}}
+  \norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}.
+\]
+The fixed point $\widehat V^\pi$ is generally not the direct best approximation
+$\Pi_{\phi,\xi_\pi}V^\pi$.
+
+\subsection{Monte Carlo and Semi-Gradient TD}
+
+For independent state--return samples $(x_k,g_k)$, stochastic gradient descent
+on $(g_k-\phi(x_k)^\top w)^2$ gives
+\[
+  w\leftarrow w+\alpha_k
+  (g_k-\phi(x_k)^\top w)\phi(x_k).
+\]
+
+For a sampled transition $(x_k,a_k,r_k,x^{\prime}_k)$, replace $g_k$ by a
+bootstrapped target. The TD error is
+\[
+  \delta_k
   =
+<<<<<<< HEAD
   \{V_w : V_w(x)=\phi(x)^\top w,\ w\in\R^d\}.
 \]
 Usually $V^\pi\notin\mathcal{V}_\phi$. The Bellman update
@@ -238,6 +367,34 @@ with update
 We will use this action-value version below because QR-DQN and the deep
 distributional algorithms are control methods: the agent must compare actions in
 the same state, and this comparison is immediate from $Q(x,a)$.
+=======
+  r_k+\gamma\phi(x^{\prime}_k)^\top w-\phi(x_k)^\top w,
+\]
+and the semi-gradient update is
+\[
+  w\leftarrow w+\alpha_k\delta_k\phi(x_k).
+\]
+It is called a semi-gradient because the target is held fixed during
+differentiation. The gradient of the full squared Bellman error would contain
+an additional term involving $\phi(x_k^{\prime})$.
+
+The connection to the projected Bellman operator is clearest with separate
+target weights $\widetilde w$:
+\[
+  w\leftarrow w+\alpha_k
+  \bigl(r_k+\gamma\phi(x_k^{\prime})^\top\widetilde w-\phi(x_k)^\top w\bigr)
+  \phi(x_k).
+\]
+For fixed $\widetilde w$, this is SGD toward the solution
+\[
+  \Phi w^*=\Pi_{\phi,\xi}\T^\pi V_{\widetilde w}.
+\]
+Setting $\widetilde w=w$ creates a moving-target feedback loop. Even when the
+exact projected operator converges, semi-gradient iterates can diverge under an
+unsuitable sampling distribution (Baird's counterexample). On-policy sampling
+according to the steady-state distribution restores classical convergence
+guarantees under the usual feature and step-size assumptions.
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
 
 \section{Distributional Value Approximation}
 
@@ -269,6 +426,7 @@ For $r\in\R$, define the affine map
 If $\nu\in\p(\R)$, then $(f_{r,\gamma})_{\#}\nu$ is the distribution of
 $r+\gamma Z$ when $Z\sim\nu$. The distributional Bellman operator
 $\T^\pi$ maps a return-distribution function $\eta$ to
+<<<<<<< HEAD
 \[
   (\T^\pi\eta)(x,a)
   =
@@ -295,6 +453,46 @@ cumulative distribution function $F_\nu$, define its quantile function by
 \[
   F_\nu^{-1}(\tau)
   =
+=======
+\[
+  (\T^\pi\eta)(x,a)
+  =
+  \E\left[
+    (f_{R,\gamma})_{\#}\eta(X^{\prime},A^{\prime})
+    \mid X=x,A=a
+  \right],
+  \qquad A^{\prime}\sim\pi(\cdot\mid X^{\prime}).
+\]
+The expectation averages over the random reward, the next state, and the next
+action sampled from the policy.
+The distributional Bellman equation is
+\[
+  \eta^\pi=\T^\pi\eta^\pi.
+\]
+Taking means on both sides recovers the usual Bellman equation for $Q^\pi$, but
+the distributional equation is stronger: it describes the whole random return,
+not only its expectation.
+
+There is an important distinction between the two approximation mechanisms now
+present. A probability representation approximates the \emph{output} at one
+state by finitely many numbers. Function approximation shares those numbers
+\emph{across states}. Moreover, probability distributions do not form a vector
+space: in general it is meaningless to require
+\[
+  \eta_{w_1+w_2}(x)=\eta_{w_1}(x)+\eta_{w_2}(x),
+\]
+because the right side has total mass two. Following Chapter 9, ``linear
+distributional approximation'' therefore means that the parameters of a valid
+probability representation depend linearly on $\phi(x)$.
+
+Just as linear TD restricts $Q$ to a class $\mathcal{Q}_\phi$, distributional
+methods restrict $\eta$ to a class of approximate distributions. The quantile
+family is one of the most important such choices. For a distribution $\nu$ with
+cumulative distribution function $F_\nu$, define its quantile function by
+\[
+  F_\nu^{-1}(\tau)
+  =
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
   \inf\{z\in\R : F_\nu(z)\geq \tau\},
   \qquad \tau\in(0,1).
 \]
@@ -445,6 +643,91 @@ The target atoms become
   \qquad j=1,\ldots,N.
 \]
 This is the quantile analogue of replacing policy evaluation TD by Q-learning.
+<<<<<<< HEAD
+=======
+
+\section{Linear Categorical TD}
+
+Quantile locations are one possible linearly parameterized representation. The
+categorical alternative fixes locations
+\[
+  \theta_1<\cdots<\theta_m
+\]
+and makes the logits of their probabilities linear in the state features. For
+weights $w_1,\ldots,w_m\in\R^n$, define
+\[
+  p_i(x;w)
+  =
+  \frac{\exp(\phi(x)^\top w_i)}
+       {\sum_{j=1}^m\exp(\phi(x)^\top w_j)},
+  \qquad
+  \eta_w(x)=\sum_{i=1}^m p_i(x;w)\delta_{\theta_i}.
+\]
+The softmax is not incidental: arbitrary linear coefficients would not
+necessarily be nonnegative or sum to one.
+
+For a sample transition $(x,a,r,x^{\prime})$, apply the affine Bellman map and then the
+categorical projection:
+\[
+  \bar\eta(x)
+  =\Pi_c(f_{r,\gamma})_\#\eta_w(x^{\prime})
+  =\sum_{i=1}^m\bar p_i\delta_{\theta_i}.
+\]
+Equivalently, if $\zeta_{i,j}(r)$ denotes the fraction of the mass originally
+at $\theta_j$ assigned to $\theta_i$ by the projection, then
+\[
+  \bar p_i=\sum_{j=1}^m\zeta_{i,j}(r)p_j(x^{\prime};w).
+\]
+Linear CTD minimizes the cross-entropy
+\[
+  L(w)=-\sum_{i=1}^m\bar p_i\log p_i(x;w).
+\]
+The softmax--cross-entropy gradient gives the particularly simple update
+\[
+  w_i\leftarrow w_i+\alpha
+  \underbrace{\bigl(\bar p_i-p_i(x;w)\bigr)}_{\text{categorical TD error}}
+  \phi(x).
+\]
+
+Scalar TD, linear QTD, and linear CTD therefore share the template
+\[
+  w_i\leftarrow w_i+\alpha\varepsilon_i\phi(x),
+\]
+but use different error signals. The scalar TD error is unbounded. The QTD and
+CTD errors lie in $[-1,1]$, which suggests different learning dynamics even
+before a nonlinear network is introduced. Both distributional rules are
+semi-gradients: the Bellman target is treated as fixed when differentiating.
+
+\section{Deep Neural Networks and DQN}
+
+Chapter 10 of \cite{bellemare2023distributional} replaces the fixed
+representation $\phi$ by a representation learned jointly with the prediction
+heads. In the canonical DQN architecture, four preprocessed $84\times84$ Atari
+frames are passed through three convolutional layers and a fully connected
+layer. The latter produces a 512-dimensional feature vector; a final linear
+layer outputs one action value $Q_w(x,a)$ for each $a\in\A$. Thus the
+penultimate layer may still be viewed as a state representation, but one whose
+parameters are learned.
+
+DQN behaves $\varepsilon$-greedily with respect to $Q_w$ and stores transitions
+in a replay buffer. Given online weights $w$, target weights $\widetilde w$, and
+a sampled transition $(x,a,r,x^{\prime})$, its target is
+\[
+  y=r+\gamma\max_{a^{\prime}\in\A}Q_{\widetilde w}(x^{\prime},a^{\prime}).
+\]
+The squared loss and semi-gradient update are
+\[
+  L(w)=(y-Q_w(x,a))^2,
+  \qquad
+  w\leftarrow w+\alpha(y-Q_w(x,a))\nabla_wQ_w(x,a).
+\]
+When $Q_w(x,a)=\phi(x,a)^\top w$, the gradient is exactly $\phi(x,a)$ and the
+linear update is recovered. In the nonlinear case, backpropagation efficiently
+computes the gradient through all layers. Replay reduces temporal correlations
+and reuses data; the frozen target weights slow the moving-target feedback loop.
+The Huber loss is often substituted for the squared loss to limit the influence
+of large TD errors.
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
 
 \section{Gateway to Deep Representations}
 
@@ -453,6 +736,7 @@ The linear approximation above separates representation and prediction:
   \text{fixed features } \phi(x,a)
   \qquad\text{and}\qquad
   \text{linear heads } w_i.
+<<<<<<< HEAD
 \]
 This is the useful gateway into deep distributional reinforcement learning. The
 deep version keeps the same conceptual decomposition, but replaces the fixed
@@ -471,6 +755,26 @@ one may write
 \]
 The return-distribution approximation becomes
 \[
+=======
+\]
+This is the useful gateway into deep distributional reinforcement learning. The
+deep version keeps the same conceptual decomposition, but replaces the fixed
+feature map by a learned representation. A neural network maps the observation
+or state to a feature vector
+\[
+  \psi_\xi(x)\in\R^d,
+\]
+and the final layers produce a distributional prediction. In the quantile case
+one may write
+\[
+  \theta_i(x,a;\omega)
+  =
+  f_i(\psi_\xi(x),a),
+  \qquad i=1,\ldots,N.
+\]
+The return-distribution approximation becomes
+\[
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
   \eta_\omega(x,a)
   =
   \frac{1}{N}\sum_{i=1}^N
@@ -482,6 +786,49 @@ prediction heads. Linear Quantile TD is recovered as the special case in which
 $\psi_\xi$ is fixed and $f_i$ is linear. Deep quantile methods instead optimize
 all of $\omega$ by backpropagating through the distributional TD loss.
 
+<<<<<<< HEAD
+=======
+More generally, a deep distributional network outputs an
+$|\A|\times m$ matrix of distribution parameters. C51 interprets each action's
+row as categorical logits, QR-DQN as quantile locations, and IQN makes the
+quantile level an additional network input. The probability representation
+changes, but online/target networks, replay, semi-gradient targets, and
+$\varepsilon$-greedy behavior remain the common scaffold.
+
+\section{C51}
+
+C51 fixes support locations $\theta_1<\cdots<\theta_m$ and lets the network
+output logits $\varphi_i(x,a;w)$. They define
+\[
+  p_i(x,a;w)=
+  \frac{e^{\varphi_i(x,a;w)}}{\sum_{j=1}^m e^{\varphi_j(x,a;w)}},
+  \qquad
+  \eta_w(x,a)=\sum_{i=1}^m p_i(x,a;w)\delta_{\theta_i}.
+\]
+The induced action value and greedy target-network action are
+\[
+  Q_w(x,a)=\sum_{i=1}^m p_i(x,a;w)\theta_i,
+  \qquad
+  a_{\widetilde w}(x^{\prime})\in\arg\max_{a^{\prime}}Q_{\widetilde w}(x^{\prime},a^{\prime}).
+\]
+For a transition $(x,a,r,x^{\prime})$, form the projected Bellman target
+\[
+  \bar\eta(x,a)
+  =\Pi_c(f_{r,\gamma})_\#
+  \eta_{\widetilde w}(x^{\prime},a_{\widetilde w}(x^{\prime}))
+  =\sum_{j=1}^m\bar p_j\delta_{\theta_j},
+\]
+and minimize
+\[
+  L(w)=-\sum_{j=1}^m\bar p_j\log p_j(x,a;w).
+\]
+This is the nonlinear counterpart of linear CTD. Unlike the linear case,
+weights in early layers affect every output probability, so there is no
+independent per-particle update. The original algorithm uses $m=51$ evenly
+spaced locations. The support endpoints matter: projected mass outside the
+support is clipped to an endpoint, introducing representation bias.
+
+>>>>>>> 1c70eefe7bcf4148f3d2065f20d46419ca856c0e
 \section{QR-DQN}
 
 QR-DQN is the deep control version of Quantile TD \cite{dabney2018quantile}. It
