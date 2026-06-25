@@ -18,6 +18,7 @@
 \newcommand{\A}{\mathcal{A}}
 \newcommand{\F}{\mathcal{F}}
 \newcommand{\T}{\mathcal{T}}
+\newcommand{\D}{\mathcal{D}}
 \newcommand{\1}{\mathds{1}}
 \newcommand{\norm}[1]{\lVert#1\rVert}
 
@@ -33,91 +34,200 @@
 
 \section{Recap}
 
-\begin{frame}{Quick Recap}
-  As seen, for a finite MDP with policy $\pi$ and discount
-  $\gamma\in[0,1)$, we define
+\begin{frame}{Recap: MDP and Return}
+  We are working on a finite MDP: 
   \[
-    V^\pi(x)=\E[G^\pi(x)],
+    (\X,\A,\xi_0,P_X,P_R),
     \qquad
-    \eta^\pi(x)=\operatorname{Law}(G^\pi(x)).
+    \pi:\X\to\Pcal(\A),
+    \qquad
+    \gamma\in[0,1).
   \]
-  The corresponding Bellman equations are
+  Trajectory process:
   \[
-    V^\pi=\T^\pi V^\pi,
-    \qquad
-    \eta^\pi=\T^\pi\eta^\pi,
+    X_0\sim\xi_0,\qquad
+    A_t\sim\pi(\cdot\mid X_t),
   \]
-  As seen, return distributions can be represented categorically or through
-  quantiles and learned using CTD or QTD updates.
-  \begin{block}{Focus of this talk}
-    How do we share parameters across a very large state space, first with
-    fixed linear features and then with learned neural-network features?
+  \[
+    R_t\sim P_R(\cdot\mid X_t,A_t),
+    \qquad
+    X_{t+1}\sim P_X(\cdot\mid X_t,A_t),
+    \qquad t\geq0.
+  \]
+  Discounted return:
+  \[
+    G^\pi(x)
+    =
+    \sum_{t=0}^{\infty}\gamma^t R_t
+    \quad\text{given }X_0=x.
+  \]
+\end{frame}
+
+\begin{frame}{Recap: Value function and Bellman Operator}
+  The value function is given by the expected return: 
+  \[
+    V^\pi(x)=\E[G^\pi(x)] = \int_\R z\,d\eta_\pi(x)(z)
+  \]
+  Where $\eta_\pi(x) = \D(G^\pi(x))$ is the return distribution. \\
+
+  As we know, there is a recursive relation for the value function known as Bellman's Equation: 
+  \[
+    V^\pi=\T^\pi V^\pi.
+  \]
+  Where we have the Bellman operator $\T^\pi:\R^\X\to\R^\X$:
+  \[
+    (\T^\pi V)(x)
+    =
+    \E_\pi\left[
+      R+\gamma V(X')
+      \mid X=x
+    \right].
+  \]
+
+\end{frame}
+
+\begin{frame}{Recap: Random-Variable Bellman Equation}
+  With $(A,R,X')$ sampled from
+  $\pi(\cdot\mid x)P_R(\cdot\mid x,A)P_X(\cdot\mid x,A)$,
+  the random-variable Bellman equation is:
+  \[
+    G^\pi(x)
+    \overset{D}{=}
+    R+\gamma G^\pi(X')
+    \mid X=x.
+  \]
+  Taking laws gives the return-distribution equation:
+  \[
+    \eta_\pi(x)
+    =
+    \D\left(R+\gamma G^\pi(X')\mid X=x\right).
+  \]
+  This is the distributional version of
+  $(\T^\pi V)(x)=\E_\pi[R+\gamma V(X')\mid X=x]$.
+\end{frame}
+
+\begin{frame}{Recap: Distributional Bellman Operator}
+  Define the bootstrap map
+  \[
+    b_{r,\gamma}(z)=r+\gamma z,
+    \qquad r,z\in\R,
+  \]
+  and for $Z'\sim\eta(x')$,
+  \[
+    (b_{r,\gamma})_\#\eta(x')=\D(r+\gamma Z').
+  \]
+  Distributional Bellman operator $\T^\pi:\Pcal(\R)^\X\to\Pcal(\R)^\X$:
+  \[
+    (\T^\pi\eta)(x)
+    =
+    \E_\pi\left[
+      (b_{R,\gamma})_\#\eta(X')
+      \mid X=x
+    \right].
+  \]
+  Distributional Bellman equation:
+  \[
+    \eta_\pi(x)
+    =
+    \E_\pi\left[
+      (b_{R,\gamma})_\#\eta_\pi(X')
+      \mid X=x
+    \right],
+    \qquad
+    \eta_\pi=\T^\pi\eta_\pi.
+  \]
+\end{frame}
+
+\begin{frame}{Recap: Representations of Return Distributions}
+  Categorical representation:
+  \[
+    \eta(x)=\sum_{i=1}^m p_i^\theta(x)\delta_{\theta_i},
+    \qquad
+    p^\theta_i(x)\geq0,\quad \sum_{i=1}^m p_i^\theta(x)=1.
+  \]
+  Quantile representation:
+  \[
+    \eta(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)},
+    \qquad
+    \tau_i=\frac{2i-1}{2m},
+    \qquad
+    \theta_i(x)\approx F_{\eta(x)}^{-1}(\tau_i).
+  \]
+  \begin{block}{Focus of this Presentation} 
+    If $\mathcal{X}$ is large, then storing even a scaler, let alone a distribution per state is expensive. 
+    Hence, we look for suitable approximations.
   \end{block}
 \end{frame}
 
-\section{Linear Function Approximation}
+\section{Scalar Linear Function Approximation}
 
-\begin{frame}{Function Approximation and Aliasing}
-  A tabular estimate has a separate parameter for every state. Function
-  approximation shares parameters across states.
-  \begin{itemize}
-    \item It makes large or continuous state spaces tractable.
-    \item It generalizes predictions to states not yet observed.
-    \item It also creates \alert{aliasing}: one parameter affects several states.
-  \end{itemize}
-  If aliased states require different predictions, no parameter choice is exact.
-  With bootstrapping, their approximation error can propagate to states that are
-  not themselves aliased.
-  \begin{block}{Two distinct approximations}
-    Distributional RL approximates both the output distribution and the mapping
-    from states to those distributions.
-  \end{block}
-\end{frame}
-
-\begin{frame}{Linear Value Function Approximation}
-  A state representation is a map
-  \[
-    \phi:\X\to\R^n,
-    \qquad
-    \phi(x)=(\phi_1(x),\ldots,\phi_n(x))^\top.
-  \]
-  For weights $w\in\R^n$, the approximation is
+\begin{frame}{Linear Value Function Approximation | Scalar Case}
+  For weights $w\in\R^n$ approximate the value function as
   \[
     V_w(x)=\phi(x)^\top w,
     \qquad
     \nabla_w V_w(x)=\phi(x).
   \]
-  For finite $\X$, stack feature rows into $\Phi\in\R^{|\X|\times n}$:
+  For finite $\X$ and feature map $\phi$, stack feature rows into $\Phi\in\R^{|\X|\times n}$:
   \[
     V_w=\Phi w,
     \qquad
     \F_\phi=\{\Phi w:w\in\R^n\}.
   \]
-  For action values either use $\phi:\X\times\A\to\R^n$ and
-  $Q_w(x,a)=\phi(x,a)^\top w$, or shared $\phi(x)$ with per-action weights $w_a$.
+  For state-action pairs, use e.g. $\phi:\X\times\A\to\R^n$ via
+  $Q_w(x,a)=\phi(x,a)^\top w$.
+  \begin{block}{Idea} 
+    Instead of having a lookup table for the value of each state, we use a linear function to represent the function.
+    \textcolor{red}{This function can be queried cheaply. }
+  \end{block}
+
+  \pause
+  {\large\textcolor{red}{\textbf{Question}: How do we get a good $w$?}}
 \end{frame}
 
-\begin{frame}{The Best Linear Approximation}
-  Choose a state-weighting distribution $\xi\in\Pcal(\X)$ and define
+\begin{frame}{Linear Approximation as Regression}
+  Fitting a linear value function is just ordinary least squares:
+  \[
+    V_w=\Phi w,
+    \qquad
+    \min_{w\in\R^n}\norm{V^\pi-V_w}_{2}.
+  \]
+
+  which we could solve by the normal equation. 
+
+  \begin{block}{However}
+    In reinforcement learning, we might want to have a better approximation for some states than others.  
+  \end{block}
+\end{frame}
+
+
+\begin{frame}{Weighted Norm for Linear Approximation}
+  For some $\xi \in \Pcal(\X)$ we define the weighted $L_2$ norm and diagonal weight matrix
   \[
     \norm{V-V'}_{\xi,2}
     =\left(\sum_{x\in\X}\xi(x)(V(x)-V'(x))^2\right)^{1/2}.
+    \qquad
+    \Xi=\operatorname{diag}(\xi(x):x\in\X).
   \]
-  The representation problem is
-  \[
+
+  The problem we now want to solve is: 
+  $$
     \min_{w\in\R^n}\norm{V^\pi-V_w}_{\xi,2}.
-  \]
-  With $\Xi=\operatorname{diag}(\xi(x):x\in\X)$, full support of $\xi$, and
-  linearly independent columns of $\Phi$, the unique solution is
-  \[
-    w^*=(\Phi^\top\Xi\Phi)^{-1}\Phi^\top\Xi V^\pi.
-  \]
-  The choice of $\xi$ says which states matter most; it is part of the
-  approximation problem, not a harmless implementation detail.
+  $$
+  \pause
+    \begin{block}{Proposition 9.3 $\mid$ Weighted Normal Equation}
+    If $\xi$ has full support and the columns of $\Phi$ are linearly
+    independent, the unique solution is
+    \[
+      w^*=(\Phi^\top\Xi\Phi)^{-1}\Phi^\top\Xi V^\pi.
+    \]
+  \end{block}
 \end{frame}
 
 \begin{frame}{Projection Back into the Feature Space}
-  In general, $V\in\F_\phi$ does not imply $\T^\pi V\in\F_\phi$.
+  We have a linear approximation now, however we cant iterate the Bellman operator because we could have   
+  $$\T^\pi V_w \notin \F_\phi$$. \\
+  
   Define the weighted orthogonal projection
   \[
     (\Pi_{\phi,\xi}V)(x)=\phi(x)^\top w^*,
@@ -131,28 +241,49 @@
   \begin{itemize}
     \item $\T^\pi$ performs the Bellman update.
     \item $\Pi_{\phi,\xi}$ removes components that the features cannot express.
-    \item Repeated projection can compound error (the diffusion effect).
   \end{itemize}
+  Repeated projection can compound error (the diffusion effect).
+
 \end{frame}
 
 \begin{frame}{When Is the Projected Operator Stable?}
   Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$.
-  Then both $P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in the
-  $\xi_\pi$-weighted $L_2$ norm. Hence
-  \[
-    \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
-    \Pi_{\phi,\xi_\pi}\T^\pi V'}_{\xi_\pi,2}
-    \leq\gamma\norm{V-V'}_{\xi_\pi,2}.
-  \]
-  It has a unique fixed point
-  \[
-    \widehat V^\pi=\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi,
-  \]
-  with error bound
+  \begin{block}{Projected Bellman contraction / Theorem 9.8}
+    Since $P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in
+    $\norm{\cdot}_{\xi_\pi,2}$,
+    \[
+      \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
+      \Pi_{\phi,\xi_\pi}\T^\pi V'}_{\xi_\pi,2}
+      \leq\gamma\norm{V-V'}_{\xi_\pi,2}.
+    \]
+  \end{block}
+  Therefore there is a unique fixed point
+  $\widehat V^\pi=\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi$, with
   \[
     \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}
     \leq\frac{1}{\sqrt{1-\gamma^2}}
     \norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}.
+  \]
+\end{frame}
+
+\begin{frame}{Scalar Linear Approximation: Proof Chain}
+  The scalar argument works because everything lives in a Hilbert space:
+  \[
+    \R^\X,\qquad
+    \langle V,V'\rangle_{\xi_\pi}
+    =\sum_{x\in\X}\xi_\pi(x)V(x)V'(x).
+  \]
+  The feature class $\F_\phi=\{\Phi w:w\in\R^n\}$ is a linear subspace.
+  \begin{enumerate}
+    \item $\Pi_{\phi,\xi_\pi}$ is an orthogonal projection, hence nonexpansive.
+    \item Stationarity of $\xi_\pi$ makes $P^\pi$ nonexpansive in
+      $\norm{\cdot}_{\xi_\pi,2}$.
+    \item The Bellman operator is affine with linear part $\gamma P^\pi$.
+  \end{enumerate}
+  Therefore
+  \[
+    \Pi_{\phi,\xi_\pi}\T^\pi
+    \quad\text{is a }\gamma\text{-contraction.}
   \]
 \end{frame}
 
@@ -163,7 +294,7 @@
   \]
   Absorbing the factor $2$ into the step size gives
   \[
-    w\leftarrow w+alpha_k
+    w\leftarrow w+\alpha_k
     \bigl(g_k-\phi(x_k)^\top w\bigr)\phi(x_k).
   \]
   This is genuine stochastic gradient descent: the target $g_k$ does not depend
@@ -285,10 +416,251 @@
   \]
   Its semi-gradient update has the same template as linear TD and QTD:
   \[
-    w_i\leftarrow w_i+alpha
+    w_i\leftarrow w_i+\alpha
     \underbrace{(\bar p_i-p_i(x;w))}_{\text{CTD error}}\phi(x).
   \]
   Thus all three methods have the form $w_i\leftarrow w_i+\alpha\varepsilon_i\phi(x)$.
+\end{frame}
+
+\begin{frame}{Distributional Projection: What Is Projected?}
+  The distributional Bellman update usually leaves the chosen finite family:
+  \[
+    \T^\pi\eta_w\notin
+    \left\{\frac1m\sum_i\delta_{\phi(x)^\top w_i}:w_i\in\R^n\right\}.
+  \]
+  Hence the conceptual fixed point is again projected:
+  \[
+    \eta=\Pi_{\F}\T^\pi\eta.
+  \]
+  The projection is no longer the scalar orthogonal projection
+  $\Pi_{\phi,\xi}$.
+  \begin{itemize}
+    \item QTD uses a \emph{quantile projection}: choose atom locations by
+      quantile regression.
+    \item CTD uses a \emph{categorical projection}: redistribute mass onto a
+      fixed support.
+    \item Linear features add a second projection/aliasing effect across states.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Chapter 9 Objects: Signed Categorical Family}
+  Fix support locations $S=\{\theta_1<\cdots<\theta_m\}$.
+  The signed categorical family on $S$ is
+  \[
+    \F_{S,m}
+    =
+    \left\{
+      \sum_{i=1}^m p_i\delta_{\theta_i}
+      : p_i\in\R,\ \sum_{i=1}^m p_i=1
+    \right\}.
+  \]
+  Unlike ordinary CTD probabilities, the coefficients $p_i$ may be negative.
+  Over states,
+  \[
+    \F_{S,m}^{\X}=\{\eta:\X\to\F_{S,m}\}.
+  \]
+  The book's clean linear convergence theorem is for this signed categorical
+  variant, not for softmax CTD or QTD directly.
+\end{frame}
+
+\begin{frame}{Chapter 9 Objects: Linear Signed Approximation}
+  Let $\psi:\X\to\R^d$ be a feature map. The book uses signed categorical
+  weights of the form
+  \[
+    p_i(x)
+    =
+    \frac1m
+    +\psi(x)^\top w_i
+    -\frac1m\sum_{j=1}^m\psi(x)^\top w_j .
+  \]
+  Then
+  \[
+    \sum_{i=1}^m p_i(x)=1,
+    \qquad
+    p_i(x)\in\R.
+  \]
+  The resulting linearly representable family is
+  \[
+    \F_{\psi,S,m}
+    =
+    \left\{\eta_W:
+      \eta_W(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i}
+      \in\F_{S,m}\ \forall x
+    \right\}.
+  \]
+\end{frame}
+
+\begin{frame}{Chapter 9 Objects: Cram\'er Geometry}
+  For a signed distribution $\nu$, let
+  \[
+    F_\nu(z)=\nu((-\infty,z])
+  \]
+  denote its cumulative distribution function. The Cram\'er distance is
+  \[
+    \ell_2^2(\nu,\nu')
+    =\int_\R\left(F_\nu(z)-F_{\nu'}(z)\right)^2\,dz
+  \]
+  whenever this quantity is finite. Define
+  \[
+    \mathcal M_{\ell_2,1}(\R)
+  \]
+  as the set of signed distributions $\nu$ with total mass $\nu(\R)=1$ and
+  finite Cram\'er distance to the reference distribution $\delta_0$.
+  For return-distribution functions $\eta:\X\to\mathcal M_{\ell_2,1}(\R)$,
+  \[
+    \ell_{\xi_\pi,2}^2(\eta,\eta')
+    =
+    \sum_{x\in\X}\xi_\pi(x)
+    \ell_2^2\!\left(\eta(x),\eta'(x)\right).
+  \]
+\end{frame}
+
+\begin{frame}{Chapter 9 Objects: The Two Projections}
+  The categorical projection maps a signed distribution to the fixed support:
+  \[
+    \Pi_c:\mathcal M_{\ell_2,1}(\R)\to\F_{S,m}.
+  \]
+  The feature projection maps signed categorical return functions back into
+  the linearly representable family:
+  \[
+    \Pi_{\psi,\xi_\pi,\ell_2}:\F_{S,m}^{\X}\to\F_{\psi,S,m}.
+  \]
+  It is defined as the $\ell_{\xi_\pi,2}$-closest element of the linear
+  feature class. The doubly projected Bellman operator is
+  \[
+    \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi.
+  \]
+  The order is: Bellman update, categorical projection, feature projection.
+\end{frame}
+
+\begin{frame}{Chapter 9 Lemmas: Bellman and Categorical Steps}
+  Assume rewards have finite first moments and the Markov chain under $\pi$ has
+  a unique stationary distribution $\xi_\pi$.
+  \begin{block}{Lemma 9.14: Bellman Step}
+    For any $\eta,\eta'\in\mathcal M_{\ell_2,1}(\R)^\X$,
+    \[
+      \ell_{\xi_\pi,2}(\T^\pi\eta,\T^\pi\eta')
+      \leq
+      \gamma^{1/2}\ell_{\xi_\pi,2}(\eta,\eta').
+    \]
+  \end{block}
+  \begin{block}{Lemma 9.15: Categorical Projection}
+    For any signed distributions $\nu,\nu'$,
+    \[
+      \ell_2(\Pi_c\nu,\Pi_c\nu')\leq \ell_2(\nu,\nu').
+    \]
+  \end{block}
+\end{frame}
+
+\begin{frame}{Chapter 9 Lemmas: Feature Projection}
+  The final projection is the analogue of the scalar linear projection, but
+  applied to signed categorical distributions with the Cram\'er metric.
+  \begin{block}{Lemma 9.16: Linear Feature Projection}
+    For any $\eta,\eta'\in\mathcal F_{S,m}^{\X}$,
+    \[
+      \ell_{\xi_\pi,2}
+      \left(
+        \Pi_{\psi,\xi_\pi,\ell_2}\eta,
+        \Pi_{\psi,\xi_\pi,\ell_2}\eta'
+      \right)
+      \leq
+      \ell_{\xi_\pi,2}(\eta,\eta').
+    \]
+  \end{block}
+  Thus each piece is either a contraction or a nonexpansion:
+  \[
+    \T^\pi
+    \quad\text{contracts,}\qquad
+    \Pi_c,\ \Pi_{\psi,\xi_\pi,\ell_2}
+    \quad\text{do not expand.}
+  \]
+\end{frame}
+
+\begin{frame}{Chapter 9 Theorem: Doubly Projected Bellman}
+  Composing the three preceding statements gives the actual convergence-style
+  result for linear distributional approximation in the book.
+  \begin{block}{Theorem 9.13}
+    Under the assumptions above, for all
+    $\eta,\eta'\in\mathcal M_{\ell_2,1}(\R)^\X$,
+    \[
+      \ell_{\xi_\pi,2}
+      \left(
+        \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta,
+        \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta'
+      \right)
+      \leq
+      \gamma^{1/2}\ell_{\xi_\pi,2}(\eta,\eta').
+    \]
+  \end{block}
+  Hence the projected distributional Bellman operator has a unique fixed point
+  in $\F_{\psi,S,m}$, by Banach's fixed-point theorem.
+\end{frame}
+
+\begin{frame}{Chapter 9: Exact Contraction Chain}
+  For $\eta,\eta'\in\mathcal M_{\ell_2,1}(\R)^\X$,
+  \[
+  \begin{aligned}
+    &\ell_{\xi_\pi,2}
+    \left(
+      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta,
+      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta'
+    \right) \\
+    &\quad\leq
+    \ell_{\xi_\pi,2}(\Pi_c\T^\pi\eta,\Pi_c\T^\pi\eta') \\
+    &\quad\leq
+    \ell_{\xi_\pi,2}(\T^\pi\eta,\T^\pi\eta') \\
+    &\quad\leq
+    \gamma^{1/2}\ell_{\xi_\pi,2}(\eta,\eta').
+  \end{aligned}
+  \]
+  The three lines are exactly: feature projection nonexpansion,
+  categorical projection nonexpansion, and distributional Bellman contraction.
+\end{frame}
+
+\begin{frame}{Why Signed Measures Make the Theory Work}
+  The scalar proof needs a linear subspace and an orthogonal projection. The
+  signed categorical construction recreates that geometry:
+  \[
+    p_i(x)\in\R,\qquad \sum_i p_i(x)=1.
+  \]
+  Allowing negative masses is mathematically useful because affine combinations
+  remain inside the signed unit-mass family.
+  \begin{block}{Practical probability models lose this geometry}
+    Softmax CTD/C51 enforces
+    \[
+      p_i(x)\geq0,\qquad \sum_i p_i(x)=1,
+    \]
+    producing a nonlinear simplex-valued parameterization, not a linear
+    projection space.
+  \end{block}
+  Quantile methods move atom locations instead of masses, so their projection
+  is quantile regression, not an orthogonal projection in Cram\'er geometry.
+\end{frame}
+
+\begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
+  C51, QR-DQN, and IQN combine several ingredients:
+  \[
+    \text{nonlinear network}
+    + \text{bootstrapping}
+    + \text{greedy control}
+    + \text{replay/target networks}.
+  \]
+  The theory is therefore much weaker than for policy evaluation.
+  \begin{block}{What Theorem 9.13 needs}
+    A fixed policy, linear projection in a fixed metric, and a fixed operator
+    \[
+      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi .
+    \]
+  \end{block}
+  \begin{block}{What Chapter 10 uses}
+    Nonlinear parameters and a moving control target, e.g.
+    \[
+      r+\gamma Z_{\widetilde w}
+      \left(x',\arg\max_{a'}\E[Z_{\widetilde w}(x',a')]\right).
+    \]
+  \end{block}
+  So Chapter 10 inherits the projection intuition, but not a comparable general
+  convergence theorem for deep distributional DQN.
 \end{frame}
 
 \section{Deep Distributional Reinforcement Learning}
