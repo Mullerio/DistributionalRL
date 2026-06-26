@@ -287,70 +287,83 @@
   \]
 \end{frame}
 
-\begin{frame}{Monte Carlo as Stochastic Gradient Descent}
-  Given independent state--return samples $(x_k,g_k)$, use the sample loss
+\begin{frame}{Temporal-Difference Learning: Sampled Bellman Updates}
+  Computing the Bellman iterates is expensive because it requires the expectation over the next state and reward.
+  Instead, TD learning uses the sampled one-step Bellman target
   \[
-    L(w)=\bigl(g_k-\phi(x_k)^\top w\bigr)^2.
+    r_k+\gamma V_w(x'_k).
   \]
-  Absorbing the factor $2$ into the step size gives
+  The TD error is target minus current prediction:
   \[
-    w\leftarrow w+\alpha_k
-    \bigl(g_k-\phi(x_k)^\top w\bigr)\phi(x_k).
+    \delta_k=r_k+\gamma V_w(x'_k)-V_w(x_k).
   \]
-  This is genuine stochastic gradient descent: the target $g_k$ does not depend
-  on $w$. Under standard sampling and step-size conditions, it approaches the
-  weighted least-squares solution.
+  Equivalently, TD minimizes the squared TD error
+  \[
+    L_k(w)=\frac12\delta_k^2
+    =
+    \frac12
+    \left(r_k+\gamma V_w(x'_k)-V_w(x_k)\right)^2.
+  \]
+  In the semi-gradient step, only $V_w(x_k)$ is differentiated:
+  \[
+    w\leftarrow w+\alpha_k\delta_k\nabla_w V_w(x_k).
+  \]
+  For linear features $V_w(x)=\phi(x)^\top w$:
+  \[
+    w\leftarrow w+\alpha_k\delta_k\phi(x_k).
+  \]
 \end{frame}
 
-\begin{frame}{Semi-Gradient Temporal-Difference Learning}
-  For a transition $(x_k,a_k,r_k,x'_k)$, replace the Monte Carlo return by
-  the bootstrapped target
+\begin{frame}{Section 9.4: Semi-Gradient TD}
+  The book first writes the linear TD update as
   \[
-    r_k+\gamma V_w(x'_k)=r_k+\gamma\phi(x'_k)^\top w.
-  \]
-  The update is
-  \[
-    w\leftarrow w+\alpha_k
-    \underbrace{\bigl(r_k+\gamma\phi(x'_k)^\top w-\phi(x_k)^\top w\bigr)}
-    _{\text{TD error}}
+    w \leftarrow w+\alpha_k
+    \underbrace{\left(
+      r_k+\gamma\phi(x'_k)^\top w-\phi(x_k)^\top w
+    \right)}_{\text{TD error}}
     \phi(x_k).
   \]
-  It is a \emph{semi}-gradient: while differentiating, the target is treated as
-  fixed. Differentiating the full squared Bellman error would also produce a
-  term involving $\phi(x'_k)$.
+  Then introduce a separate vector $\widetilde w$ in the target:
+  \[
+    w \leftarrow w+\alpha_k
+    \left(
+      r_k+\gamma\phi(x'_k)^\top\widetilde w-\phi(x_k)^\top w
+    \right)\phi(x_k).
+  \]
+  With fixed $\widetilde w$, this is SGD on the sample loss and its solution
+  satisfies
+  \[
+    \Phi w^*
+    =
+    \Pi_{\phi,\xi}\T^\pi V_{\widetilde w}.
+  \]
+  \begin{block}{Book's fixed-point statement}
+    At the fixed point $\widehat V^\pi=\Phi\widehat w$ of the projected operator,
+    \[
+      \E_\pi\!\left[
+      \left(
+        R+\gamma\phi(X')^\top\widehat w-\phi(X)^\top\widehat w
+      \right)\phi(X)
+      \right]=0.
+    \]
+  \end{block}
 \end{frame}
 
-\begin{frame}{Target Weights Explain the Projection Connection}
-  Freeze a second vector $\widetilde w$ inside the target:
+\begin{frame}{From Value function approximation to Distributional Approximation}
+  Want to linearly approximate probability distributions. However in general 
   \[
-    w\leftarrow w+\alpha_k
-    \bigl(r_k+\gamma\phi(x'_k)^\top\widetilde w-\phi(x_k)^\top w\bigr)
-    \phi(x_k).
+   \eta_{w_1}(x)+\eta_{w_2}(x) \notin \Pcal(\R)
   \]
-  This is SGD on a fixed-target loss and approximately computes one projected
-  Bellman step:
-  \[
-    \Phi w^*=\Pi_{\phi,\xi}\T^\pi V_{\widetilde w}.
-  \]
-  Setting $\widetilde w=w$ recovers ordinary semi-gradient TD, but also creates
-  a feedback loop. Function approximation, bootstrapping, and an unsuitable
-  sampling distribution can then produce divergence (Baird's counterexample).
-\end{frame}
-
-\begin{frame}{Why ``Linear Distribution'' Needs Care}
-  Probability distributions do not form a vector space:
-  \[
-    \eta_{w_1+w_2}(x)\neq\eta_{w_1}(x)+\eta_{w_2}(x)
-  \]
-  because the right side has total mass $2$.
-  \begin{block}{Book's convention}
+  and since the distribution lives in $\Pcal(\R)$, we can have non finite support. 
+  \begin{block}{How to solve this?}
+    Fix a finite dimensional family of distributions $\F_\theta\subset\Pcal(\R)$ and then linearly approximate the parameters of the distribution.
     ``Linear'' distributional approximation means that the \emph{parameters of
-    a probability representation} depend linearly on features.
+    a probability representation} depend linearly on features $\phi$.
   \end{block}
   There are therefore two approximation layers:
   \begin{enumerate}
     \item a finite probability representation (categorical or quantile),
-    \item feature aliasing across states.
+    \item linear value function approximation.
   \end{enumerate}
 \end{frame}
 
