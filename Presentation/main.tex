@@ -556,9 +556,18 @@
     g_j=r+\gamma\phi(x')^\top w_j,
     \qquad j=1,\ldots,m.
   \]
-  Averaging the quantile subgradient over these targets yields
+  For atom $i$, average the quantile loss over these targets:
   \[
-    w_i\leftarrow w_i+\alpha\frac1m\sum_{j=1}^m
+    L_i(w_i)=\frac1m\sum_{j=1}^m
+    \rho_{\tau_i}\left(g_j-\phi(x)^\top w_i\right).
+  \]
+  The semi-gradient step is
+  \[
+    w_i
+    \leftarrow
+    w_i-\alpha\nabla_{w_i}L_i(w_i)
+    =
+    w_i+\alpha\frac1m\sum_{j=1}^m
     \underbrace{\left(\tau_i-
     \1_{\{g_j<\phi(x)^\top w_i\}}\right)}_{\text{quantile TD error}}
     \phi(x).
@@ -647,7 +656,7 @@
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Signed Categorical Family}
-  We can make our lives easier by allowing negative measures. 
+  We can make our lives to develop theory easier by allowing negative measures. 
   The signed categorical family on $S = \{\theta_1,\ldots,\theta_m\}$ is
   \[
     \F_{S,m}
@@ -669,7 +678,7 @@
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Linear Signed Approximation}
-  We just do a linear approximation, and force it to add to one.
+  Linear approximation, subtracting the mean!
   \[
     p_i(x)
     =
@@ -684,14 +693,42 @@
     p_i(x)\in\R.
   \]
   The resulting family of distribution is denoted by $\F_{\phi,S,m}$.
+  \pause
+  \begin{center}
+      \textcolor{red}{We want to perform bellman updates and ensure that the result is still in $\F_{\phi,S,m}$!}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Chapter 9 Objects: Why Two Projections?}
+  \small
+  Start with a $\eta\in\F_{\phi,S,m}$. After the Bellman update,
+  \[
+    \T^\pi\eta
+  \]
+  two things can go wrong.
+
+  \medskip
+  \textbf{1. Distribution representation.}
+  For a state $x$, $(\T^\pi\eta)(x)$ need not be supported on
+  $S=\{\theta_1,\ldots,\theta_m\}$. Hence we apply the categorical projection $\Pi_c$ from before. \\
+
+
+  \textbf{2. Linear feature representation.}
+  Even after $\Pi_c$, the map $x\mapsto(\Pi_c\T^\pi\eta)(x)$ need not lie in
+  $\F_{\phi,S,m}$. Hence we need to define the feature projection by
+  \[
+    \Pi_{\phi,\xi,d}\widetilde\eta
+    \in
+    \arg\min_{\eta'\in\F_{\phi,S,m}}
+    d(\widetilde\eta,\eta').
+  \]
+   In some suitable metric $d$. The final bellman update is then 
+  \[
+    \Pi_{\phi,\xi,d}\Pi_c\T^\pi\eta. \]
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Cram\'er Geometry}
-  For a signed distribution $\nu$, let
-  \[
-    F_\nu(z)=\nu((-\infty,z])
-  \]
-  denote its cumulative distribution function. The Cram\'er distance is
+  We use the Cram\'er distance introduced prior, given by 
   \[
     \ell_2^2(\nu,\nu')
     =\int_\R\left(F_\nu(z)-F_{\nu'}(z)\right)^2\,dz
@@ -699,34 +736,20 @@
   whenever this quantity is finite. Define
   \[
     \mathcal M_{\ell_2,1}(\R)
-  \]
-  as the set of signed distributions $\nu$ with total mass $\nu(\R)=1$ and
-  finite Cram\'er distance to the reference distribution $\delta_0$.
-  For return-distribution functions $\eta:\X\to\mathcal M_{\ell_2,1}(\R)$,
-  \[
-    \ell_{\xi_\pi,2}^2(\eta,\eta')
     =
-    \sum_{x\in\X}\xi_\pi(x)
+    \left\{
+      \nu\in\mathcal M(\R):
+      \nu(\R)=1,\ 
+      \ell_2(\nu,\delta_0)<\infty
+    \right\}.
+  \]
+  For return-distribution functions $\eta:\X\to\mathcal M_{\ell_2,1}(\R)$ we can again define a weighted distance
+  \[
+    \ell_{\xi,2}^2(\eta,\eta')
+    =
+    \sum_{x\in\X}\xi(x)
     \ell_2^2\!\left(\eta(x),\eta'(x)\right).
   \]
-\end{frame}
-
-\begin{frame}{Chapter 9 Objects: The Two Projections}
-  The categorical projection maps a signed distribution to the fixed support:
-  \[
-    \Pi_c:\mathcal M_{\ell_2,1}(\R)\to\F_{S,m}.
-  \]
-  The feature projection maps signed categorical return functions back into
-  the linearly representable family:
-  \[
-    \Pi_{\phi,\xi_\pi,\ell_2}:\F_{S,m}^{\X}\to\F_{\phi,S,m}.
-  \]
-  It is defined as the $\ell_{\xi_\pi,2}$-closest element of the linear
-  feature class. The doubly projected Bellman operator is
-  \[
-    \Pi_{\phi,\xi_\pi,\ell_2}\Pi_c\T^\pi.
-  \]
-  The order is: Bellman update, categorical projection, feature projection.
 \end{frame}
 
 \begin{frame}{Chapter 9 Lemmas: Bellman and Categorical Steps}
@@ -813,52 +836,6 @@
   categorical projection nonexpansion, and distributional Bellman contraction.
 \end{frame}
 
-\begin{frame}{Why Signed Measures Make the Theory Work}
-  The scalar proof needs a linear subspace and an orthogonal projection. The
-  signed categorical construction recreates that geometry:
-  \[
-    p_i(x)\in\R,\qquad \sum_i p_i(x)=1.
-  \]
-  Allowing negative masses is mathematically useful because affine combinations
-  remain inside the signed unit-mass family.
-  \begin{block}{Practical probability models lose this geometry}
-    Softmax CTD/C51 enforces
-    \[
-      p_i(x)\geq0,\qquad \sum_i p_i(x)=1,
-    \]
-    producing a nonlinear simplex-valued parameterization, not a linear
-    projection space.
-  \end{block}
-  Quantile methods move atom locations instead of masses, so their projection
-  is quantile regression, not an orthogonal projection in Cram\'er geometry.
-\end{frame}
-
-\begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
-  C51, QR-DQN, and IQN combine several ingredients:
-  \[
-    \text{nonlinear network}
-    + \text{bootstrapping}
-    + \text{greedy control}
-    + \text{replay/target networks}.
-  \]
-  The theory is therefore much weaker than for policy evaluation.
-  \begin{block}{What Theorem 9.13 needs}
-    A fixed policy, linear projection in a fixed metric, and a fixed operator
-    \[
-      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi .
-    \]
-  \end{block}
-  \begin{block}{What Chapter 10 uses}
-    Nonlinear parameters and a moving control target, e.g.
-    \[
-      r+\gamma Z_{\widetilde w}
-      \left(x',\arg\max_{a'}\E[Z_{\widetilde w}(x',a')]\right).
-    \]
-  \end{block}
-  So Chapter 10 inherits the projection intuition, but not a comparable general
-  convergence theorem for deep distributional DQN.
-\end{frame}
-
 \section{Deep Distributional Reinforcement Learning}
 
 \begin{frame}{From Fixed Features to Learned Features}
@@ -877,61 +854,44 @@
   and the conceptual model for the deep semi-gradient update.
 \end{frame}
 
-\begin{frame}{DQN: Prediction, Behavior, and Experience}
-  DQN maps an observation $x$ to one value per action:
+\begin{frame}{From DQN to Distributional DQN}
+  \small
+  Standard DQN predicts one scalar per action:
   \[
-    Q_w(x,a),\qquad a\in\A.
+    x\longmapsto \bigl(Q_w(x,a)\bigr)_{a\in\A},
+    \qquad
+    Q_w(x,a)\approx\E[Z(x,a)].
   \]
-  In the canonical Atari setup:
-  \begin{itemize}
-    \item four preprocessed $84\times84$ frames form the network input;
-    \item convolutional layers and a fully connected layer produce 512 features;
-    \item a linear output layer produces $|\A|$ action values;
-    \item an $\varepsilon$-greedy policy acts from $Q_w$;
-    \item transitions are stored and resampled from replay memory.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{DQN: Semi-Gradient Learning}
-  With online weights $w$, target weights $\widetilde w$, and transition
-  $(x,a,r,x')$, define
+  Distributional DQN predicts a return distribution per action:
   \[
-    y=r+\gamma\max_{a'\in\A}Q_{\widetilde w}(x',a').
+    x\longmapsto \bigl(\eta_w(x,a)\bigr)_{a\in\A},
+    \qquad
+    \eta_w(x,a)\approx \D(Z(x,a)).
   \]
-  The squared loss and semi-gradient update are
+  For a transition $(x,a,r,x')$, the target is now a shifted future-return
+  distribution:
   \[
-    L(w)=(y-Q_w(x,a))^2,
+    (b_{r,\gamma})_\#\eta_{\widetilde w}(x',a^*),
+    \qquad
+    a^*\in\arg\max_{a'\in\A}Q_{\widetilde w}(x',a').
   \]
-  \[
-    w\leftarrow w+\alpha(y-Q_w(x,a))\nabla_wQ_w(x,a).
-  \]
-  If $Q_w(x,a)=\phi(x,a)^\top w$, then $\nabla_wQ_w=\phi$: this is exactly
-  the linear update. Replay reduces temporal correlation; the frozen target
-  network slows the moving-target feedback loop.
-\end{frame}
-
-\begin{frame}{Distributional Network Output}
-  Deep distributional RL changes the output from one scalar per action to
-  $m$ distribution parameters per action:
+  The output has $m$ distribution parameters per action:
   \[
     x\longmapsto\R^{|\A|\times m}.
   \]
-  The interpretation determines the algorithm:
   \begin{itemize}
-    \item \textbf{C51:} fixed locations, learned softmax probabilities;
-    \item \textbf{QR-DQN:} equal probabilities, learned quantile locations;
+    \item \textbf{C51:} using the categorical representation
+    \item \textbf{QR-DQN:} using the quantile representation
     \item \textbf{IQN:} quantile level $\tau$ becomes an additional input.
   \end{itemize}
-  Behavior is usually risk-neutral: derive $Q_w(x,a)$ from the predicted
-  distribution and do $\varepsilon$-greedy action selection as in DQN.
 \end{frame}
 
 \begin{frame}{C51: Prediction and Behavior}
-  For fixed $\theta_1<\cdots<\theta_m$, the network outputs logits
-  $\varphi_i(x,a;w)$ and
+  Using state action categorical representation with fixed $\theta_1<\cdots<\theta_m$, the network outputs 
+  $\phi_i(x,a;w)$ and
   \[
-    p_i(x,a;w)=\frac{e^{\varphi_i(x,a;w)}}
-    {\sum_{j=1}^m e^{\varphi_j(x,a;w)}},
+    p_i(x,a;w)=\frac{e^{\phi_i(x,a;w)}}
+    {\sum_{j=1}^m e^{\phi_j(x,a;w)}},
     \qquad
     \eta_w(x,a)=\sum_{i=1}^mp_i(x,a;w)\delta_{\theta_i}.
   \]
@@ -939,11 +899,10 @@
   \[
     Q_w(x,a)=\sum_{i=1}^mp_i(x,a;w)\theta_i.
   \]
-  Original C51 uses $m=51$ evenly spaced locations; support choice imposes an
-  important inductive bias because projected targets outside it are clipped.
+  Original C51 uses $m=51$ evenly spaced atoms.
 \end{frame}
 
-\begin{frame}{C51: Bellman Target and Cross-Entropy}
+\begin{frame}{C51 Learning Algorithm}
   Select the target-network greedy action
   \[
     a_{\widetilde w}(x')\in\arg\max_{a'}Q_{\widetilde w}(x',a').
@@ -959,8 +918,7 @@
   \[
     L(w)=-\sum_{j=1}^m\bar p_j\log p_j(x,a;w).
   \]
-  This is the nonlinear analogue of linear CTD, except shared early-layer
-  weights influence all particles and cannot be updated independently.
+  This is pretty much the same as the linear CTD update.  
 \end{frame}
 
 \begin{frame}{QR-DQN: Quantile Prediction}
@@ -994,9 +952,14 @@
       |u|-\frac12,&|u|>1.
     \end{cases}
   \]
-  The quantile asymmetry places different heads at different parts of the
-  distribution; the Huber transition gives smooth small-error gradients and
-  limits the influence of large errors.
+
+  \begin{block}{Difference to linear case}
+    \begin{itemize}
+      \item We use the Huber loss to reduce sensitivity to outliers and have a differentiable loss.
+      \item The loss is over all weights simultaneously, not entrywise. 
+    \end{itemize}
+    
+  \end{block}
 \end{frame}
 
 \begin{frame}{IQN: Make the Quantile Level an Input}
@@ -1086,6 +1049,34 @@
     \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
     \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
   \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
+  C51, QR-DQN, and IQN combine several ingredients:
+  \[
+    \text{nonlinear network}
+    + \text{bootstrapping}
+    + \text{greedy control}
+    + \text{replay/target networks}.
+  \]
+  The theory is therefore much weaker than for policy evaluation.
+  \begin{block}{What Theorem 9.13 needs}
+    A fixed policy, linear projection in a fixed metric, and a fixed operator
+    \[
+      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi .
+    \]
+  \end{block}
+  \begin{block}{What Chapter 10 uses}
+    Nonlinear parameters and a moving control target, e.g.
+    \[
+      r+\gamma Z_{\widetilde w}
+      \left(x',\arg\max_{a'}\E[Z_{\widetilde w}(x',a')]\right).
+    \]
+  \end{block}
+  So Chapter 10 inherits the projection intuition, but not a comparable general
+  convergence theorem for deep distributional DQN.
 \end{frame}
 
 \end{document}
