@@ -6,6 +6,8 @@
 \usepackage{amsmath,amssymb,bm}
 \usepackage{mathtools}
 \usepackage{dsfont}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,positioning,decorations.pathreplacing}
 
 \title[Distributional RL]{Distributional Reinforcement Learning | Part 2}
 \author[Jonas Müller]{Jonas Müller}
@@ -367,27 +369,189 @@
   \end{enumerate}
 \end{frame}
 
-\begin{frame}{Linear Quantile TD: Representation and Loss}
-  With $m$ quantile locations and weights $w_1,\ldots,w_m\in\R^n$,
+\begin{frame}{Finite Return-Distribution Families}
+  For a probability measure $\eta\in\Pcal(\R)$, we have 
   \[
-    \eta_w(x)=\frac1m\sum_{i=1}^m\delta_{\phi(x)^\top w_i},
+    F_\eta(t)=\eta((-\infty,t]),
     \qquad
-    \tau_i=\frac{2i-1}{2m}.
+    F_\eta^{-1}(\tau)=\inf\{z\in\R:F_\eta(z)\geq\tau\}.
   \]
-  Define the quantile loss
+  We consider the finite dimensional approximations:
+  \[
+    \text{categorical:}\qquad
+    \eta(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i},
+    \qquad
+    p_i(x)\geq0,\quad \sum_{i=1}^m p_i(x)=1,
+  \]
+  \[
+    \text{quantile:}\qquad
+    \eta(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)},
+    \qquad
+    \tau_i=\frac{2i-1}{2m}, \qquad  \theta_i(x)\approx F_{\eta(x)}^{-1}(\tau_i).
+  \]
+  \begin{block}{What is state-dependent?}
+    Categorical representations fix $\theta_i$ and learn the
+    probabilities $p_i(x)$. Quantile fixes equal probabilities $1/m$ and learns
+    locations $\theta_i(x)\approx F_{\eta(x)}^{-1}(\tau_i)$. \\
+
+    \pause 
+    \textcolor{red}{\textbf{Question}: We do not know $F^{-1}_{\eta(x)}$ in practice.}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Categorical vs. Quantile}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \textbf{Categorical}
+      \[
+        \eta(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i}
+      \]
+      \begin{tikzpicture}[x=0.68cm,y=1.05cm,>=Stealth,
+          every node/.style={font=\scriptsize}]
+        \draw[->] (-2.9,0) -- (2.9,0);
+        \draw[->] (-2.6,0) -- (-2.6,2.25);
+        \fill[gray!35,opacity=0.22]
+          plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+          (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+          (2.1,0.35) (2.6,0.12)}
+          -- (2.6,0) -- cycle;
+        \draw[gray!55,opacity=0.35,thick]
+          plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+          (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+          (2.1,0.35) (2.6,0.12)};
+        \foreach \x/\h in {-2.0/0.25,-1.15/0.55,-0.25/1.65,0.55/1.35,1.35/0.75,2.1/0.35} {
+          \draw[very thick,blue!70!black] (\x,0) -- (\x,\h);
+          \fill[blue!70!black] (\x,\h) circle (1.7pt);
+        }
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \textbf{Quantile}
+      \[
+        \eta(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)}
+      \]
+      \begin{tikzpicture}[x=0.68cm,y=1.05cm,>=Stealth,
+          every node/.style={font=\scriptsize}]
+        \draw[->] (-2.9,0) -- (2.9,0);
+        \draw[->] (-2.6,0) -- (-2.6,2.25);
+        \fill[gray!35,opacity=0.22]
+          plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+          (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+          (2.1,0.35) (2.6,0.12)}
+          -- (2.6,0) -- cycle;
+        \draw[gray!55,opacity=0.35,thick]
+          plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+          (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+          (2.1,0.35) (2.6,0.12)};
+        \foreach \x in {-1.9,-1.2,-0.25,0.0,0.25,1.45} {
+          \draw[very thick,red!75!black] (\x,0) -- (\x,0.75);
+          \fill[red!75!black] (\x,0.75) circle (1.55pt);
+        }
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{block}{Key distinction}
+    $\tau_i$ is a fixed probability level. $\theta_i(x)$ is the return value
+    placed at that level.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Quantile Levels: Input $\tau$, Output $\theta$}
+  \centering
+  \begin{tikzpicture}[x=0.92cm,y=0.92cm,>=Stealth,
+      every node/.style={font=\scriptsize}]
+    \draw[->] (0,0) -- (8.2,0) node[right] {return $z$};
+    \draw[->] (0,0) -- (0,4.1) node[above] {$F_{\eta(x)}(z)$};
+
+    \draw[very thick,black]
+      plot[smooth] coordinates {(0.35,0.15) (1.2,0.35) (2.1,0.95)
+      (3.1,1.45) (4.5,2.25) (5.9,3.15) (7.4,3.78)};
+    \node[black] at (6.2,3.55) {$F_{\eta(x)}$};
+
+    \draw[densely dashed,blue!65!black] (0,0.75) -- (1.75,0.75) -- (1.75,0);
+    \fill[blue!65!black] (1.75,0.75) circle (1.8pt);
+    \node[left,blue!65!black] at (0,0.75) {$\tau_1$};
+    \node[below,blue!65!black] at (1.75,0) {$\theta_1(x)$};
+
+    \draw[densely dashed,red!75!black] (0,1.55) -- (3.25,1.55) -- (3.25,0);
+    \fill[red!75!black] (3.25,1.55) circle (1.8pt);
+    \node[left,red!75!black] at (0,1.55) {$\tau_2$};
+    \node[below,red!75!black] at (3.25,0) {$\theta_2(x)$};
+
+    \draw[densely dashed,teal!70!black] (0,2.35) -- (4.65,2.35) -- (4.65,0);
+    \fill[teal!70!black] (4.65,2.35) circle (1.8pt);
+    \node[left,teal!70!black] at (0,2.35) {$\tau_3$};
+    \node[below,teal!70!black] at (4.65,0) {$\theta_3(x)$};
+
+    \draw[densely dashed,orange!80!black] (0,3.15) -- (5.9,3.15) -- (5.9,0);
+    \fill[orange!80!black] (5.9,3.15) circle (1.8pt);
+    \node[left,orange!80!black] at (0,3.15) {$\tau_4$};
+    \node[below,orange!80!black] at (5.9,0) {$\theta_4(x)$};
+
+    \node[align=center] at (4.1,-0.95)
+      {$\theta_i(x)\approx F_{\eta_\pi(x)}^{-1}(\tau_i)$};
+
+    \begin{scope}[yshift=-1.75cm]
+      \draw[->] (0,0) -- (8.2,0) node[right] {represented atoms};
+      \draw[very thick,blue!65!black] (1.75,0) -- (1.75,0.55);
+      \fill[blue!65!black] (1.75,0.55) circle (1.7pt);
+      \draw[very thick,red!75!black] (3.25,0) -- (3.25,0.55);
+      \fill[red!75!black] (3.25,0.55) circle (1.7pt);
+      \draw[very thick,teal!70!black] (4.65,0) -- (4.65,0.55);
+      \fill[teal!70!black] (4.65,0.55) circle (1.7pt);
+      \draw[very thick,orange!80!black] (5.9,0) -- (5.9,0.55);
+      \fill[orange!80!black] (5.9,0.55) circle (1.7pt);
+      \node[align=center] at (6.55,0.85) {each atom has\\probability $1/m$};
+    \end{scope}
+  \end{tikzpicture}
+
+  \vspace{0.6em}
+  Changing $\tau_i$ asks for a different probability level; changing
+  $\theta_i(x)$ moves the atom and therefore changes the represented
+  distribution.
+\end{frame}
+
+\begin{frame}{Distributional TD: Learning}
+  For fixed feature map $\phi(x)\in\mathbb R^d$.
+  A linear method has, for every atom,  
+  \[
+    u_i(x)=\phi(x)^\top w_i,\qquad w_i\in\mathbb R^d.
+  \]
+  Observing a transition $(x,r,x')$ gives us a empirical target. We fit this via 
+  \[
+    w_i \leftarrow w_i+\alpha\,\varepsilon_i(x,r,x')\,\phi(x).
+  \]
+   where $\varepsilon_i$ is a error term. \textcolor{blue}{This term and the meaning of $u_i$ is what changes.}
+\end{frame}
+
+\begin{frame}{Linear Quantile TD: Representation and Loss}
+  For the quantile representation, we choose 
+  \[
+    u_i(x) = \theta_i(x) = \phi(x)^\top w_i,
+  \]
+  The represented return distribution is
+  \[
+    \eta_w(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)}
+    =
+    \frac1m\sum_{i=1}^m\delta_{\phi(x)^\top w_i},
+  \]
+  Then we take the quantile loss as in the tabular case
   \[
     \rho_\tau(\Delta)=\left|\1_{\{\Delta<0\}}-\tau\right||\Delta|.
   \]
-  For one target $z$, head $i$ uses
+  For one target $z$, atom $i$ uses this loss on the residual
   \[
     L_{\tau_i}(w_i)=\rho_{\tau_i}\bigl(z-\phi(x)^\top w_i\bigr),
   \]
-  whose subgradient is proportional to
+  whose subgradient w.r.t. $w_i$ is
   $-(\tau_i-\1_{\{z<\phi(x)^\top w_i\}})\phi(x)$.
 \end{frame}
 
 \begin{frame}{Linear QTD: Distributional Semi-Gradient}
-  A transition $(x,a,r,x')$ supplies $m$ target samples
+  Similar to the tabular case, for transition $(x,a,r,x')$ we get $m$ target samples
   \[
     g_j=r+\gamma\phi(x')^\top w_j,
     \qquad j=1,\ldots,m.
@@ -399,13 +563,12 @@
     \1_{\{g_j<\phi(x)^\top w_i\}}\right)}_{\text{quantile TD error}}
     \phi(x).
   \]
-  As in scalar TD, $g_j$ is treated as constant during differentiation.
-  Unlike the scalar TD error, each averaged quantile error is bounded.
+  %As in scalar TD, $g_j$ is treated as constant during differentiation.
+  Unlike the scalar TD error, each averaged quantile error is in $ [-1,1]$.
 \end{frame}
 
 \begin{frame}{Linear Categorical TD: Prediction}
-  Fix support locations $\theta_1<\cdots<\theta_m$. Linear logits are
-  transformed into probabilities by a softmax:
+  We approximate the probabilites $p_i(x;w)$ by a linear combination of features:
   \[
     p_i(x;w)=
     \frac{\exp(\phi(x)^\top w_i)}
@@ -413,78 +576,106 @@
     \qquad
     \eta_w(x)=\sum_{i=1}^m p_i(x;w)\delta_{\theta_i}.
   \]
-  The softmax is essential: arbitrary linear coefficients need not be
-  nonnegative or sum to one.
+  transformed into probabilities by the softmax function. 
+  Softmax is needed, direct linear coefficients need not be nonnegative or sum to one. 
+
+  \pause 
+  \begin{center}
+      \textcolor{red}{This can be handled, later!}
+        \end{center}
+
+\end{frame}
+
+\begin{frame}{Linear CTD: How to Stay on Fixed Support}
+  \small
+  For a sampled transition $(x,r,x')$, the Bellman update is an update
+  of the prediction at the current state $x$:
+  \[
+    \underbrace{
+    \eta_w(x)
+    =
+    \sum_{j=1}^m p_j(x;w)\delta_{\theta_j}
+    }_{\text{prediction at }x}
+    \xrightarrow{\quad \text{Observed }(r,x')\quad}
+    \underbrace{
+    (b_{r,\gamma})_\#\eta_w(x')
+    =
+    \sum_{j=1}^m p_j(x';w)\delta_{r+\gamma\theta_j}
+    }_{\text{Empirical Bellman step for }x}.
+  \]
+  Since in general $r+\gamma\theta_j$ need not lie on the fixed support, use
+  the categorical projection $\Pi_c$ to project the shifted atoms back to the fixed support
+  $S=\{\theta_1,\ldots,\theta_m\}$.
+  For each $j$,
+  if $\theta_\ell\le r+\gamma\theta_j\le\theta_{\ell+1}$, split its mass as
+  \[
+    \bar p_\ell \mathrel{+}=
+    p_j(x';w)\frac{\theta_{\ell+1}-(r+\gamma\theta_j)}
+    {\theta_{\ell+1}-\theta_\ell},
+    \qquad
+    \bar p_{\ell+1} \mathrel{+}=
+    p_j(x';w)\frac{(r+\gamma\theta_j)-\theta_\ell}
+    {\theta_{\ell+1}-\theta_\ell}.
+  \]
+  This gives the projected target
+   \[
+    \bar\eta_{x,r,x'}
+    =
+    \Pi_c(b_{r,\gamma})_\#\eta_w(x')
+    =\sum_{i=1}^m\bar p_i\delta_{\theta_i}.
+  \]
 \end{frame}
 
 \begin{frame}{Linear CTD: Target, Loss, and Update}
-  Project the Bellman-updated next distribution back to the fixed support:
-  \[
-    \bar\eta(x)=\Pi_c(b_{r,\gamma})_\#\eta_w(x')
-    =\sum_{i=1}^m\bar p_i\delta_{\theta_i}.
-  \]
-  Cross-entropy is the matching loss for softmax probabilities:
+  To learn softmax probabilities, we use the Cross-entropy loss:
   \[
     L(w)=-\sum_{i=1}^m\bar p_i\log p_i(x;w).
   \]
-  Its semi-gradient update has the same template as linear TD and QTD:
+  Since
+  \[
+    \frac{\partial L}{\partial u_i}
+    =
+    p_i(x;w)-\bar p_i,
+    \qquad
+    \nabla_{w_i}u_i(x)=\phi(x),
+  \]
+  gradient descent gives the semi-gradient CTD update:
   \[
     w_i\leftarrow w_i+\alpha
     \underbrace{(\bar p_i-p_i(x;w))}_{\text{CTD error}}\phi(x).
   \]
-  Thus all three methods have the form $w_i\leftarrow w_i+\alpha\varepsilon_i\phi(x)$.
-\end{frame}
-
-\begin{frame}{Distributional Projection: What Is Projected?}
-  The distributional Bellman update usually leaves the chosen finite family:
-  \[
-    \T^\pi\eta_w\notin
-    \left\{\frac1m\sum_i\delta_{\phi(x)^\top w_i}:w_i\in\R^n\right\}.
-  \]
-  Hence the conceptual fixed point is again projected:
-  \[
-    \eta=\Pi_{\F}\T^\pi\eta.
-  \]
-  The projection is no longer the scalar orthogonal projection
-  $\Pi_{\phi,\xi}$.
-  \begin{itemize}
-    \item QTD uses a \emph{quantile projection}: choose atom locations by
-      quantile regression.
-    \item CTD uses a \emph{categorical projection}: redistribute mass onto a
-      fixed support.
-    \item Linear features add a second projection/aliasing effect across states.
-  \end{itemize}
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Signed Categorical Family}
-  Fix support locations $S=\{\theta_1<\cdots<\theta_m\}$.
-  The signed categorical family on $S$ is
+  We can make our lives easier by allowing negative measures. 
+  The signed categorical family on $S = \{\theta_1,\ldots,\theta_m\}$ is
   \[
     \F_{S,m}
     =
     \left\{
       \sum_{i=1}^m p_i\delta_{\theta_i}
       : p_i\in\R,\ \sum_{i=1}^m p_i=1
-    \right\}.
+    \right\} \subseteq \mathcal M(\R).
   \]
-  Unlike ordinary CTD probabilities, the coefficients $p_i$ may be negative.
-  Over states,
+  Using this we can define the signed categorical return functions
   \[
     \F_{S,m}^{\X}=\{\eta:\X\to\F_{S,m}\}.
   \]
-  The book's clean linear convergence theorem is for this signed categorical
-  variant, not for softmax CTD or QTD directly.
+  \pause
+  \begin{center}
+      \textcolor{red}{How to linearly approximate this?}
+     \end{center}
+
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Linear Signed Approximation}
-  Let $\psi:\X\to\R^d$ be a feature map. The book uses signed categorical
-  weights of the form
+  We just do a linear approximation, and force it to add to one.
   \[
     p_i(x)
     =
     \frac1m
-    +\psi(x)^\top w_i
-    -\frac1m\sum_{j=1}^m\psi(x)^\top w_j .
+    +\phi(x)^\top w_i
+    -\frac1m\sum_{j=1}^m\phi(x)^\top w_j .
   \]
   Then
   \[
@@ -492,15 +683,7 @@
     \qquad
     p_i(x)\in\R.
   \]
-  The resulting linearly representable family is
-  \[
-    \F_{\psi,S,m}
-    =
-    \left\{\eta_W:
-      \eta_W(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i}
-      \in\F_{S,m}\ \forall x
-    \right\}.
-  \]
+  The resulting family of distribution is denoted by $\F_{\phi,S,m}$.
 \end{frame}
 
 \begin{frame}{Chapter 9 Objects: Cram\'er Geometry}
@@ -536,12 +719,12 @@
   The feature projection maps signed categorical return functions back into
   the linearly representable family:
   \[
-    \Pi_{\psi,\xi_\pi,\ell_2}:\F_{S,m}^{\X}\to\F_{\psi,S,m}.
+    \Pi_{\phi,\xi_\pi,\ell_2}:\F_{S,m}^{\X}\to\F_{\phi,S,m}.
   \]
   It is defined as the $\ell_{\xi_\pi,2}$-closest element of the linear
   feature class. The doubly projected Bellman operator is
   \[
-    \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi.
+    \Pi_{\phi,\xi_\pi,\ell_2}\Pi_c\T^\pi.
   \]
   The order is: Bellman update, categorical projection, feature projection.
 \end{frame}
@@ -573,8 +756,8 @@
     \[
       \ell_{\xi_\pi,2}
       \left(
-        \Pi_{\psi,\xi_\pi,\ell_2}\eta,
-        \Pi_{\psi,\xi_\pi,\ell_2}\eta'
+        \Pi_{\phi,\xi_\pi,\ell_2}\eta,
+        \Pi_{\phi,\xi_\pi,\ell_2}\eta'
       \right)
       \leq
       \ell_{\xi_\pi,2}(\eta,\eta').
