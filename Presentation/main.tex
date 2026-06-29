@@ -914,11 +914,12 @@
     (x',a_{\widetilde w}(x'))
     =\sum_{j=1}^m\bar p_j\delta_{\theta_j}.
   \]
-  Then minimize
+  Then minimize the cross entropy loss $L(w)=-\sum_{j=1}^m\bar p_j\log p_j(x,a;w)$ and update
   \[
-    L(w)=-\sum_{j=1}^m\bar p_j\log p_j(x,a;w).
+    w\leftarrow w+\alpha
+    \sum_{i = 1}^{m}  (\bar p_i-p_i(x;w)) \nabla_w \theta_i(x,y ; w).
   \]
-  This is pretty much the same as the linear CTD update.  
+  This is pretty much the same as the linear CTD update, aside from the need to update vector valued. 
 \end{frame}
 
 \begin{frame}{QR-DQN: Quantile Prediction}
@@ -960,6 +961,59 @@
     \end{itemize}
     
   \end{block}
+\end{frame}
+
+
+\begin{frame}{Takeaways}
+  \begin{enumerate}
+    \item Linear approximation introduces state aliasing and a weighted projection
+      problem; the sampling distribution is central to stability.
+    \item Semi-gradient TD tracks a projected Bellman process, and target weights
+      make that relationship explicit.
+    \item Linear QTD and CTD make distribution \emph{parameters} linear in features.
+    \item Deep methods learn the features and retain the same prediction--target--
+      semi-gradient structure.
+    \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
+      output distribution; that choice also shapes the learned representation.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{References}
+  \footnotesize
+  \begin{itemize}
+    \item Bellemare, Dabney, Rowland (2023): \emph{Distributional Reinforcement Learning}, Chapters 9--10.
+    \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on Reinforcement Learning.
+    \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
+    \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
+  \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
+  C51, QR-DQN, and IQN combine several ingredients:
+  \[
+    \text{nonlinear network}
+    + \text{bootstrapping}
+    + \text{greedy control}
+    + \text{replay/target networks}.
+  \]
+  The theory is therefore much weaker than for policy evaluation.
+  \begin{block}{What Theorem 9.13 needs}
+    A fixed policy, linear projection in a fixed metric, and a fixed operator
+    \[
+      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi .
+    \]
+  \end{block}
+  \begin{block}{What Chapter 10 uses}
+    Nonlinear parameters and a moving control target, e.g.
+    \[
+      r+\gamma Z_{\widetilde w}
+      \left(x',\arg\max_{a'}\E[Z_{\widetilde w}(x',a')]\right).
+    \]
+  \end{block}
+  So Chapter 10 inherits the projection intuition, but not a comparable general
+  convergence theorem for deep distributional DQN.
 \end{frame}
 
 \begin{frame}{IQN: Make the Quantile Level an Input}
@@ -1026,57 +1080,5 @@
   selected by the mean.
 \end{frame}
 
-
-\begin{frame}{Takeaways}
-  \begin{enumerate}
-    \item Linear approximation introduces state aliasing and a weighted projection
-      problem; the sampling distribution is central to stability.
-    \item Semi-gradient TD tracks a projected Bellman process, and target weights
-      make that relationship explicit.
-    \item Linear QTD and CTD make distribution \emph{parameters} linear in features.
-    \item Deep methods learn the features and retain the same prediction--target--
-      semi-gradient structure.
-    \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
-      output distribution; that choice also shapes the learned representation.
-  \end{enumerate}
-\end{frame}
-
-\begin{frame}{References}
-  \footnotesize
-  \begin{itemize}
-    \item Bellemare, Dabney, Rowland (2023): \emph{Distributional Reinforcement Learning}, Chapters 9--10.
-    \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on Reinforcement Learning.
-    \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
-    \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
-  \end{itemize}
-\end{frame}
-
-
-
-\begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
-  C51, QR-DQN, and IQN combine several ingredients:
-  \[
-    \text{nonlinear network}
-    + \text{bootstrapping}
-    + \text{greedy control}
-    + \text{replay/target networks}.
-  \]
-  The theory is therefore much weaker than for policy evaluation.
-  \begin{block}{What Theorem 9.13 needs}
-    A fixed policy, linear projection in a fixed metric, and a fixed operator
-    \[
-      \Pi_{\psi,\xi_\pi,\ell_2}\Pi_c\T^\pi .
-    \]
-  \end{block}
-  \begin{block}{What Chapter 10 uses}
-    Nonlinear parameters and a moving control target, e.g.
-    \[
-      r+\gamma Z_{\widetilde w}
-      \left(x',\arg\max_{a'}\E[Z_{\widetilde w}(x',a')]\right).
-    \]
-  \end{block}
-  So Chapter 10 inherits the projection intuition, but not a comparable general
-  convergence theorem for deep distributional DQN.
-\end{frame}
 
 \end{document}
