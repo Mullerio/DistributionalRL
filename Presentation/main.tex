@@ -514,7 +514,7 @@
   distribution.
 \end{frame}
 
-\begin{frame}{Distributional TD: Learning}
+\begin{frame}{Distributional TD: Linear Learning}
   For fixed feature map $\phi(x)\in\mathbb R^d$.
   A linear method has, for every atom,  
   \[
@@ -613,7 +613,7 @@
     }_{\text{Empirical Bellman step for }x}.
   \]
   Since in general $r+\gamma\theta_j$ need not lie on the fixed support, use
-  the categorical projection $\Pi_c$ to project the shifted atoms back to the fixed support
+  the categorical projection $\Pi_c$ to project the shifted atoms back to 
   $S=\{\theta_1,\ldots,\theta_m\}$.
   For each $j$,
   if $\theta_\ell\le r+\gamma\theta_j\le\theta_{\ell+1}$, split its mass as
@@ -655,7 +655,7 @@
   \]
 \end{frame}
 
-\begin{frame}{Chapter 9 Objects: Signed Categorical Family}
+\begin{frame}{Signed Categorical Family}
   We can make our lives to develop theory easier by allowing negative measures. 
   The signed categorical family on $S = \{\theta_1,\ldots,\theta_m\}$ is
   \[
@@ -663,7 +663,7 @@
     =
     \left\{
       \sum_{i=1}^m p_i\delta_{\theta_i}
-      : p_i\in\R,\ \sum_{i=1}^m p_i=1
+      \mid p_i\in\R,\ \sum_{i=1}^m p_i=1
     \right\} \subseteq \mathcal M(\R).
   \]
   Using this we can define the signed categorical return functions
@@ -677,7 +677,7 @@
 
 \end{frame}
 
-\begin{frame}{Chapter 9 Objects: Linear Signed Approximation}
+\begin{frame}{Linear Signed Approximation of signed measures}
   Linear approximation, subtracting the mean!
   \[
     p_i(x)
@@ -727,7 +727,7 @@
     \Pi_{\phi,\xi,d}\Pi_c\T^\pi\eta. \]
 \end{frame}
 
-\begin{frame}{Chapter 9 Objects: Cram\'er Geometry}
+\begin{frame}{The Cram\'er Distance}
   We use the Cram\'er distance introduced prior, given by 
   \[
     \ell_2^2(\nu,\nu')
@@ -752,11 +752,16 @@
   \]
 \end{frame}
 
-\begin{frame}{Chapter 9 Lemmas: Bellman and Categorical Steps}
-  Assume rewards have finite first moments and the Markov chain under $\pi$ has
-  a unique stationary distribution $\xi_\pi$.
+\begin{frame}{Bellman and Categorical Projections}
+  \small
+  Assume rewards have finite first moments and the Markov chain under $\pi$
+  has a unique stationary distribution $\xi_\pi$.
   \begin{block}{Lemma 9.14: Bellman Step}
-    For any $\eta,\eta'\in\mathcal M_{\ell_2,1}(\R)^\X$,
+    Under these assumptions,
+      $\T^\pi:\mathcal M_{\ell_2,1}(\R)^\X
+      \to
+      \mathcal M_{\ell_2,1}(\R)^\X$
+    is a $\gamma^{1/2}$-contraction with respect to $\ell_{\xi_\pi,2}$:
     \[
       \ell_{\xi_\pi,2}(\T^\pi\eta,\T^\pi\eta')
       \leq
@@ -764,9 +769,17 @@
     \]
   \end{block}
   \begin{block}{Lemma 9.15: Categorical Projection}
-    For any signed distributions $\nu,\nu'$,
+    The pointwise categorical projection operator
     \[
-      \ell_2(\Pi_c\nu,\Pi_c\nu')\leq \ell_2(\nu,\nu').
+      \Pi_c:\mathcal M_{\ell_2,1}(\R)^\X\to\F_{S,m}^{\X},
+      \qquad
+      (\Pi_c\eta)(x)=\Pi_c(\eta(x))
+    \]
+    is a nonexpansion with respect to $\ell_{\xi_\pi,2}$:
+    \[
+      \ell_{\xi_\pi,2}(\Pi_c\eta,\Pi_c\eta')
+      \leq
+      \ell_{\xi_\pi,2}(\eta,\eta').
     \]
   \end{block}
 \end{frame}
@@ -775,7 +788,14 @@
   The final projection is the analogue of the scalar linear projection, but
   applied to signed categorical distributions with the Cram\'er metric.
   \begin{block}{Lemma 9.16: Linear Feature Projection}
-    For any $\eta,\eta'\in\mathcal F_{S,m}^{\X}$,
+    The function approximation projection
+    $
+      \Pi_{\phi,\xi_\pi,\ell_2}:\mathcal F_{S,m}^{\X}
+      \to
+      \mathcal F_{\phi,S,m}
+    $
+    is a nonexpansion with respect to $\ell_{\xi_\pi,2}$:
+    for any $\eta,\eta'\in\mathcal F_{S,m}^{\X}$,
     \[
       \ell_{\xi_\pi,2}
       \left(
