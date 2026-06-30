@@ -963,6 +963,270 @@
   \end{block}
 \end{frame}
 
+\begin{frame}{Particle Distributional DQN}
+  \small
+  QR-DQN represents
+  \[
+    \eta_w(x,a)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x,a;w)}
+  \]
+  where $\theta_i$ are quantile levels. MMD-DQN and
+  SinkhornDRL keep the same empirical-measure form
+  \[
+    \eta_w(x,a)=\frac1m\sum_{i=1}^m\delta_{z_i(x,a;w)},
+  \]
+  and treat the $z_i$ as unrestricted deterministic samples.
+
+  \begin{block}{Overview of Particle Distributional DQN}
+    \begin{enumerate}
+      \item Define a divergence $d$ between return distributions.
+      \item Study whether $\T^\pi$ contracts under
+        $\bar d(\eta,\nu)=\sup_{x,a}d(\eta(x,a),\nu(x,a))$.
+      \item Use the empirical version of $d$ as a differentiable DQN loss.
+    \end{enumerate}
+  \end{block}
+  This is a different route from deriving a quantile regression loss.
+\end{frame}
+
+\begin{frame}{MMD-DQN: Maximum Mean Discrepancy}
+  \small
+  Let $\mathcal H_k$ be the RKHS of a continuous kernel $k$ and let
+  \[
+    \psi_\mu=\int k(z,\cdot)\,d\mu(z)\in\mathcal H_k
+  \]
+  be the kernel mean embedding. The maximum mean discrepancy is
+  \[
+    \operatorname{MMD}_k(\mu,\nu)
+    =
+    \norm{\psi_\mu-\psi_\nu}_{\mathcal H_k}.
+  \]
+  Equivalently, if $Z,Z'\sim\mu$ and $Y,Y'\sim\nu$ independently,
+  \[
+    \operatorname{MMD}_k^2(\mu,\nu)
+    =
+    \E k(Z,Z')+\E k(Y,Y')-2\E k(Z,Y).
+  \]
+  \begin{itemize}
+    \item If $k$ is characteristic, MMD is a metric on probability measures.
+    \item Gaussian kernels are characteristic, so they can distinguish
+      distributions.
+    \item The metric geometry depends completely on the kernel.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{MMD-DQN: Supremum Metric and Contraction}
+  \small
+  Nguyen et al. define the distributional-RL metric
+  \[
+    \operatorname{MMD}_{\infty,k}(\eta,\nu)
+    =
+    \sup_{x,a}\operatorname{MMD}_k(\eta(x,a),\nu(x,a)).
+  \]
+  Their contraction result requires more than ``$k$ is characteristic.'' A
+  kernel must be:
+  \[
+    k(x+c,y+c)=k(x,y)
+    \quad\text{and}\quad
+    \operatorname{MMD}_k((b_{\gamma,0})_\#\mu,(b_{\gamma,0})_\#\nu)
+    =
+    \gamma^{\alpha/2}\operatorname{MMD}_k(\mu,\nu).
+  \]
+  Here $b_{\gamma,0}(z)=\gamma z$ and $\alpha$ is the scale-sensitivity order.
+
+  \begin{block}{Theorem idea}
+    For mixtures of shift-invariant, scale-sensitive kernels,
+    \[
+      \operatorname{MMD}_{\infty,k}(\T^\pi\eta,\T^\pi\nu)
+      \leq
+      \gamma^{\alpha/2}
+      \operatorname{MMD}_{\infty,k}(\eta,\nu).
+    \]
+  \end{block}
+  So $\T^\pi$ has the same fixed-point story as in Wasserstein, but only under
+  suitable MMD kernels.
+\end{frame}
+
+\begin{frame}{MMD-DQN: Important Caveat}
+  \small
+  The paper separates theory and best empirical practice:
+  \begin{itemize}
+    \item Unrectified kernels such as
+      \[
+        k_\alpha(x,y)=-|x-y|^\alpha,\qquad 0<\alpha<2,
+      \]
+      give the clean contraction theorem.
+    \item Gaussian kernels are characteristic and useful for moment matching.
+    \item But the paper proves that $\T^\pi$ is \emph{not} a contraction in
+      MMD for Gaussian kernels in general.
+  \end{itemize}
+
+  \begin{block}{Interpretation}
+    MMD-DQN uses Gaussian-kernel MMD because it gives a practical particle loss:
+    it attracts particles to Bellman target samples and repels particles from
+    collapsing. The contraction theorem motivates the metric framework, but
+    does not literally certify the Gaussian version used in Atari experiments.
+  \end{block}
+\end{frame}
+
+\begin{frame}{MMD-DQN: Learning with Particles}
+  \small
+  The network outputs particles
+  \[
+    Z_w(x,a)=\{z_i(x,a;w)\}_{i=1}^m,
+    \qquad
+    \eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}.
+  \]
+  For a transition $(x,a,r,x')$, construct Bellman target particles
+  \[
+    y_j=r+\gamma z_j(x',a^*;\widetilde w),
+    \qquad
+    a^*\in\arg\max_{a'}\frac1m\sum_j z_j(x',a';\widetilde w).
+  \]
+  The biased empirical MMD loss is
+  \[
+    L_{\operatorname{MMD}}(w)
+    =
+    \frac1{m^2}\sum_{i,i'}k(z_i,z_{i'})
+    +
+    \frac1{m^2}\sum_{j,j'}k(y_j,y_{j'})
+    -
+    \frac2{m^2}\sum_{i,j}k(z_i,y_j).
+  \]
+  Thus the metric is not only an evaluation tool: it becomes the backpropagated
+  Bellman error between two empirical return distributions.
+\end{frame}
+
+\begin{frame}{SinkhornDRL: Regularized Wasserstein Loss}
+  \small
+  Sun et al. start from optimal transport. For cost $c(z,y)$,
+  \[
+    \operatorname{OT}_c(\mu,\nu)
+    =
+    \inf_{\pi\in\Pi(\mu,\nu)}
+    \int c(z,y)\,d\pi(z,y).
+  \]
+  Entropic regularization gives
+  \[
+    \operatorname{OT}^{\varepsilon}_c(\mu,\nu)
+    =
+    \inf_{\pi\in\Pi(\mu,\nu)}
+    \int c\,d\pi
+    +
+    \varepsilon\,\operatorname{KL}(\pi\mid\mu\otimes\nu).
+  \]
+  The debiased Sinkhorn divergence is
+  \[
+    S^\varepsilon_c(\mu,\nu)
+    =
+    \operatorname{OT}^{\varepsilon}_c(\mu,\nu)
+    -\frac12\operatorname{OT}^{\varepsilon}_c(\mu,\mu)
+    -\frac12\operatorname{OT}^{\varepsilon}_c(\nu,\nu).
+  \]
+  It is a regularized Wasserstein-type loss: smoother than exact OT and
+  computable by Sinkhorn iterations.
+\end{frame}
+
+\begin{frame}{SinkhornDRL: Contraction Result}
+  \small
+  Define the supremal Sinkhorn divergence
+  \[
+    \bar S^\varepsilon_c(\eta,\nu)
+    =
+    \sup_{x,a}S^\varepsilon_c(\eta(x,a),\nu(x,a)).
+  \]
+  The paper analyzes contraction through two properties:
+  \begin{itemize}
+    \item \textbf{Sum invariance:} adding the same independent reward noise does
+      not increase the distance.
+    \item \textbf{Scale sensitivity:} discounting returns shrinks the distance.
+  \end{itemize}
+  For the cost family used in their theorem, the distributional Bellman operator
+  satisfies a bound of the form
+  \[
+    \bar S^\varepsilon_c(\T^\pi\eta,\T^\pi\nu)
+    \leq
+    \rho_{\varepsilon,\gamma}
+    \bar S^\varepsilon_c(\eta,\nu),
+    \qquad
+    \rho_{\varepsilon,\gamma}<1.
+  \]
+  The constant depends on $\gamma$, the regularization $\varepsilon$, the cost
+  order, and the return-distribution set of the finite MDP.
+\end{frame}
+
+\begin{frame}{SinkhornDRL: Interpolating Wasserstein and MMD}
+  \small
+  The paper emphasizes that Sinkhorn divergence interpolates between two
+  familiar geometries:
+  \[
+    \varepsilon\to0
+    \quad\Rightarrow\quad
+    S^\varepsilon_c \text{ behaves like Wasserstein/OT},
+  \]
+  \[
+    \varepsilon\to\infty
+    \quad\Rightarrow\quad
+    S^\varepsilon_c \text{ behaves like an MMD-type distance}.
+  \]
+  Correspondingly, their theorem recovers contraction behavior consistent with
+  both endpoints, and for finite $\varepsilon$ proves a genuine contraction with
+  a factor between the Wasserstein contraction factor and $1$.
+
+  \begin{block}{Why this matters}
+    Regularization makes the transport plan smoother and the loss easier to
+    optimize, but it weakens the contraction factor compared with exact
+    Wasserstein. The point is controlled trade-off, not free improvement.
+  \end{block}
+\end{frame}
+
+\begin{frame}{SinkhornDRL: Learning with Particles}
+  \small
+  As in MMD-DQN, the return distribution is represented by particles:
+  \[
+    \eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}.
+  \]
+  For a Bellman target particle set $\{y_j\}_{j=1}^m$, form the cost matrix
+  \[
+    C_{ij}=c(z_i,y_j).
+  \]
+  With uniform weights $a=b=(1/m,\ldots,1/m)$, Sinkhorn iterations approximate
+  \[
+    \min_{\Pi\in U(a,b)}
+    \sum_{i,j}\Pi_{ij}C_{ij}
+    +
+    \varepsilon\sum_{i,j}\Pi_{ij}(\log\Pi_{ij}-1),
+  \]
+  followed by the self-cost debiasing terms in $S^\varepsilon_c$.
+
+  \begin{block}{DQN update}
+    Replace the QR-DQN quantile Huber loss by the empirical Sinkhorn divergence
+    between current particles and Bellman target particles.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Metric-Based Particle DQN: Comparison}
+  \small
+  \begin{center}
+  \begin{tabular}{lccc}
+    \textbf{Method} & \textbf{Representation} & \textbf{Metric/loss} & \textbf{Theory} \\
+    \hline
+    QR-DQN & quantiles & quantile Huber & $W_1$ projection \\
+    MMD-DQN & particles & MMD & conditional contraction \\
+    SinkhornDRL & particles & Sinkhorn divergence & contraction theorem \\
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.8em}
+  The common Bellman target is still
+  \[
+    y_j=r+\gamma z_j(x',a^*;\widetilde w),
+    \qquad
+    a^*=\arg\max_{a'}\frac1m\sum_jz_j(x',a';\widetilde w).
+  \]
+  The new idea is that once a distribution metric has a Bellman contraction
+  story, its empirical sample version can be used directly as a learning
+  objective.
+\end{frame}
+
 
 \begin{frame}{Takeaways}
   \begin{enumerate}
@@ -975,6 +1239,9 @@
       semi-gradient structure.
     \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
       output distribution; that choice also shapes the learned representation.
+    \item MMD-DQN and SinkhornDRL are metric-first particle methods: they define
+      a distribution distance, analyze Bellman contraction, then use the
+      empirical distance as the DQN loss.
   \end{enumerate}
 \end{frame}
 
@@ -985,6 +1252,8 @@
     \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on Reinforcement Learning.
     \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
     \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
+    \item Nguyen et al. (2020): Distributional Reinforcement Learning via Moment Matching.
+    \item Sun et al. (2022): Distributional Reinforcement Learning with Regularized Wasserstein Loss.
   \end{itemize}
 \end{frame}
 
