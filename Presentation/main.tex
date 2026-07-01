@@ -161,7 +161,7 @@
   \end{block}
 \end{frame}
 
-\section{Scalar Linear Function Approximation}
+\section{Linear Approximation}
 
 \begin{frame}{Linear Value Function Approximation | Scalar Case}
   For weights $w\in\R^n$ approximate the value function as
@@ -249,9 +249,9 @@
 \end{frame}
 
 \begin{frame}{When Is the Projected Operator Stable?}
-  Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$.
-  \begin{block}{Projected Bellman contraction / Theorem 9.8}
-    Since $P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in
+  Let $\xi_\pi$ be a fully supported invariant distribution under $\pi$.
+  \begin{block}{Projected Bellman contraction (Bellemare et al., 2023, Theorem 9.8}
+    Since $\Pi_{\phi,\xi_\pi}$ is nonexpansions in
     $\norm{\cdot}_{\xi_\pi,2}$,
     \[
       \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
@@ -259,7 +259,10 @@
       \leq\gamma\norm{V-V'}_{\xi_\pi,2}.
     \]
   \end{block}
-  Therefore there is a unique fixed point
+  \pause
+  \textcolor{red}{How good is this compared to the true best value function?}
+  \pause
+
   $\widehat V^\pi=\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi$, with
   \[
     \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}
@@ -268,6 +271,7 @@
   \]
 \end{frame}
 
+\iffalse
 \begin{frame}{Scalar Linear Approximation: Proof Chain}
   The scalar argument works because everything lives in a Hilbert space:
   \[
@@ -288,7 +292,9 @@
     \quad\text{is a }\gamma\text{-contraction.}
   \]
 \end{frame}
+\fi
 
+\iffalse
 \begin{frame}{Temporal-Difference Learning: Sampled Bellman Updates}
   Computing the Bellman iterates is expensive because it requires the expectation over the next state and reward.
   Instead, TD learning uses the sampled one-step Bellman target
@@ -339,7 +345,7 @@
     =
     \Pi_{\phi,\xi}\T^\pi V_{\widetilde w}.
   \]
-  \begin{block}{Book's fixed-point statement}
+  \begin{block}{Fixed point and TD relation}
     At the fixed point $\widehat V^\pi=\Phi\widehat w$ of the projected operator,
     \[
       \E_\pi\!\left[
@@ -350,6 +356,7 @@
     \]
   \end{block}
 \end{frame}
+\fi
 
 \begin{frame}{From Value function approximation to Distributional Approximation}
   Want to linearly approximate probability distributions. However in general 
@@ -453,13 +460,9 @@
     \end{column}
   \end{columns}
   \vspace{0.4em}
-  \begin{block}{Key distinction}
-    $\tau_i$ is a fixed probability level. $\theta_i(x)$ is the return value
-    placed at that level.
-  \end{block}
 \end{frame}
 
-\begin{frame}{Quantile Levels: Input $\tau$, Output $\theta$}
+\begin{frame}{Quantile Functions}
   \centering
   \begin{tikzpicture}[x=0.92cm,y=0.92cm,>=Stealth,
       every node/.style={font=\scriptsize}]
@@ -467,51 +470,48 @@
     \draw[->] (0,0) -- (0,4.1) node[above] {$F_{\eta(x)}(z)$};
 
     \draw[very thick,black]
-      plot[smooth] coordinates {(0.35,0.15) (1.2,0.35) (2.1,0.95)
-      (3.1,1.45) (4.5,2.25) (5.9,3.15) (7.4,3.78)};
+      plot[smooth] coordinates {(0.35,0.12) (1.25,0.35) (2.25,0.75)
+      (3.35,1.55) (4.05,2.35) (5.45,3.15) (7.4,3.78)};
     \node[black] at (6.2,3.55) {$F_{\eta(x)}$};
 
-    \draw[densely dashed,blue!65!black] (0,0.75) -- (1.75,0.75) -- (1.75,0);
-    \fill[blue!65!black] (1.75,0.75) circle (1.8pt);
+    \draw[densely dashed,blue!65!black] (0,0.75) -- (2.25,0.75) -- (2.25,0);
+    \fill[blue!65!black] (2.25,0.75) circle (1.8pt);
     \node[left,blue!65!black] at (0,0.75) {$\tau_1$};
-    \node[below,blue!65!black] at (1.75,0) {$\theta_1(x)$};
+    \node[below,blue!65!black] at (2.25,0) {$\theta_1(x)$};
 
-    \draw[densely dashed,red!75!black] (0,1.55) -- (3.25,1.55) -- (3.25,0);
-    \fill[red!75!black] (3.25,1.55) circle (1.8pt);
+    \draw[densely dashed,red!75!black] (0,1.55) -- (3.35,1.55) -- (3.35,0);
+    \fill[red!75!black] (3.35,1.55) circle (1.8pt);
     \node[left,red!75!black] at (0,1.55) {$\tau_2$};
-    \node[below,red!75!black] at (3.25,0) {$\theta_2(x)$};
+    \node[below,red!75!black] at (3.35,0) {$\theta_2(x)$};
 
-    \draw[densely dashed,teal!70!black] (0,2.35) -- (4.65,2.35) -- (4.65,0);
-    \fill[teal!70!black] (4.65,2.35) circle (1.8pt);
+    \draw[densely dashed,teal!70!black] (0,2.35) -- (4.05,2.35) -- (4.05,0);
+    \fill[teal!70!black] (4.05,2.35) circle (1.8pt);
     \node[left,teal!70!black] at (0,2.35) {$\tau_3$};
-    \node[below,teal!70!black] at (4.65,0) {$\theta_3(x)$};
+    \node[below,teal!70!black] at (4.05,0) {$\theta_3(x)$};
 
-    \draw[densely dashed,orange!80!black] (0,3.15) -- (5.9,3.15) -- (5.9,0);
-    \fill[orange!80!black] (5.9,3.15) circle (1.8pt);
+    \draw[densely dashed,orange!80!black] (0,3.15) -- (5.45,3.15) -- (5.45,0);
+    \fill[orange!80!black] (5.45,3.15) circle (1.8pt);
     \node[left,orange!80!black] at (0,3.15) {$\tau_4$};
-    \node[below,orange!80!black] at (5.9,0) {$\theta_4(x)$};
+    \node[below,orange!80!black] at (5.45,0) {$\theta_4(x)$};
 
     \node[align=center] at (4.1,-0.95)
       {$\theta_i(x)\approx F_{\eta_\pi(x)}^{-1}(\tau_i)$};
 
     \begin{scope}[yshift=-1.75cm]
       \draw[->] (0,0) -- (8.2,0) node[right] {represented atoms};
-      \draw[very thick,blue!65!black] (1.75,0) -- (1.75,0.55);
-      \fill[blue!65!black] (1.75,0.55) circle (1.7pt);
-      \draw[very thick,red!75!black] (3.25,0) -- (3.25,0.55);
-      \fill[red!75!black] (3.25,0.55) circle (1.7pt);
-      \draw[very thick,teal!70!black] (4.65,0) -- (4.65,0.55);
-      \fill[teal!70!black] (4.65,0.55) circle (1.7pt);
-      \draw[very thick,orange!80!black] (5.9,0) -- (5.9,0.55);
-      \fill[orange!80!black] (5.9,0.55) circle (1.7pt);
+      \draw[very thick,blue!65!black] (2.25,0) -- (2.25,0.55);
+      \fill[blue!65!black] (2.25,0.55) circle (1.7pt);
+      \draw[very thick,red!75!black] (3.35,0) -- (3.35,0.55);
+      \fill[red!75!black] (3.35,0.55) circle (1.7pt);
+      \draw[very thick,teal!70!black] (4.05,0) -- (4.05,0.55);
+      \fill[teal!70!black] (4.05,0.55) circle (1.7pt);
+      \draw[very thick,orange!80!black] (5.45,0) -- (5.45,0.55);
+      \fill[orange!80!black] (5.45,0.55) circle (1.7pt);
       \node[align=center] at (6.55,0.85) {each atom has\\probability $1/m$};
     \end{scope}
   \end{tikzpicture}
 
   \vspace{0.6em}
-  Changing $\tau_i$ asks for a different probability level; changing
-  $\theta_i(x)$ moves the atom and therefore changes the represented
-  distribution.
 \end{frame}
 
 \begin{frame}{Distributional TD: Linear Learning}
@@ -642,11 +642,9 @@
   \]
   Since
   \[
-    \frac{\partial L}{\partial u_i}
+    \nabla_{w_i} L(w)
     =
-    p_i(x;w)-\bar p_i,
-    \qquad
-    \nabla_{w_i}u_i(x)=\phi(x),
+    - (\bar{p}_i - p_i(x;w)) \phi(x)
   \]
   gradient descent gives the semi-gradient CTD update:
   \[
@@ -654,6 +652,8 @@
     \underbrace{(\bar p_i-p_i(x;w))}_{\text{CTD error}}\phi(x).
   \]
 \end{frame}
+
+\section{Theory when allowing signed measures}
 
 \begin{frame}{Signed Categorical Family}
   We can make our lives to develop theory easier by allowing negative measures. 
@@ -677,7 +677,7 @@
 
 \end{frame}
 
-\begin{frame}{Linear Signed Approximation of signed measures}
+\begin{frame}{Linear Approximation of signed measures}
   Linear approximation, subtracting the mean!
   \[
     p_i(x)
@@ -699,7 +699,7 @@
   \end{center}
 \end{frame}
 
-\begin{frame}{Chapter 9 Objects: Why Two Projections?}
+\begin{frame}{Why Two Projections?}
   \small
   Start with a $\eta\in\F_{\phi,S,m}$. After the Bellman update,
   \[
@@ -754,8 +754,7 @@
 
 \begin{frame}{Bellman and Categorical Projections}
   \small
-  Assume rewards have finite first moments and the Markov chain under $\pi$
-  has a unique stationary distribution $\xi_\pi$.
+  Assume the MDP has stationary distribution $\xi_\pi$ under policy $\pi$.
   \begin{block}{Lemma 9.14: Bellman Step}
     Under these assumptions,
       $\T^\pi:\mathcal M_{\ell_2,1}(\R)^\X
@@ -784,7 +783,7 @@
   \end{block}
 \end{frame}
 
-\begin{frame}{Chapter 9 Lemmas: Feature Projection}
+\begin{frame}{Feature Projection}
   The final projection is the analogue of the scalar linear projection, but
   applied to signed categorical distributions with the Cram\'er metric.
   \begin{block}{Lemma 9.16: Linear Feature Projection}
@@ -815,9 +814,8 @@
   \]
 \end{frame}
 
-\begin{frame}{Chapter 9 Theorem: Doubly Projected Bellman}
-  Composing the three preceding statements gives the actual convergence-style
-  result for linear distributional approximation in the book.
+\begin{frame}{Theorem: Doubly Projected Bellman}
+  Composing the three preceding Lemma gives us the main result.
   \begin{block}{Theorem 9.13}
     Under the assumptions above, for all
     $\eta,\eta'\in\mathcal M_{\ell_2,1}(\R)^\X$,
@@ -852,26 +850,17 @@
     \gamma^{1/2}\ell_{\xi_\pi,2}(\eta,\eta').
   \end{aligned}
   \]
-  The three lines are exactly: feature projection nonexpansion,
-  categorical projection nonexpansion, and distributional Bellman contraction.
 \end{frame}
 
-\section{Deep Distributional Reinforcement Learning}
+\section{Distributional DQN}
 
 \begin{frame}{From Fixed Features to Learned Features}
-  A deep network replaces the hand-designed map $\phi(x)$ by a learned
+  A deep network replaces the hand crafted features $\phi$ by a learned
   representation. Its penultimate layer can still be read as
   \[
-    \phi_w(x)\in\R^n,
+    \phi_w(x, a)\in\R^n,
   \]
-  followed by linear prediction heads.
-  \begin{itemize}
-    \item Earlier layers learn which state distinctions matter.
-    \item Final layers map those features to values or distribution parameters.
-    \item Backpropagation updates both simultaneously.
-  \end{itemize}
-  Linear approximation is therefore not discarded; it remains the final layer
-  and the conceptual model for the deep semi-gradient update.
+  followed by linear prediction layer outputting the final things we are interested in.
 \end{frame}
 
 \begin{frame}{From DQN to Distributional DQN}
@@ -895,13 +884,13 @@
     \qquad
     a^*\in\arg\max_{a'\in\A}Q_{\widetilde w}(x',a').
   \]
-  The output has $m$ distribution parameters per action:
-  \[
-    x\longmapsto\R^{|\A|\times m}.
-  \]
+  \pause
+  Here $w$ are the weights we update. The weights
+  $\widetilde w$ are a frozen target-network copy, used to have a fixed target. \\
+
   \begin{itemize}
-    \item \textbf{C51:} using the categorical representation
-    \item \textbf{QR-DQN:} using the quantile representation
+    \item \textbf{C51:} using the categorical representation.
+    \item \textbf{QR-DQN:} using the quantile representation.
     \item \textbf{IQN:} quantile level $\tau$ becomes an additional input.
   \end{itemize}
 \end{frame}
@@ -955,7 +944,7 @@
     \Delta_{ij}=r+\gamma\theta_j(x',a_{\widetilde w}(x');\widetilde w)
     -\theta_i(x,a;w).
   \]
-  Every predicted quantile is compared with every target quantile.
+  Every predicted quantile is compared with every target quantile. We are intereted in how much of the target is below/above the quantile.
 \end{frame}
 
 \begin{frame}{QR-DQN: Quantile Huber Loss}
@@ -983,7 +972,30 @@
   \end{block}
 \end{frame}
 
-\begin{frame}{Particle Distributional DQN}
+\begin{frame}{Huber vs Linear Quantile loss}
+  \begin{figure}
+    \centering
+    \begin{minipage}{0.48\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{images/2026-07-01-11-07-03.png}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{images/2026-07-01-11-07-18.png}
+    \end{minipage}
+  \end{figure}
+  \vspace{-0.8em}
+  \small
+  For residual $u=y-\theta_i$, $u>0$ means the target lies above the
+  predicted quantile, so the prediction is too low. High quantiles therefore
+  give positive residuals a large weight $\tau_i$; low quantiles give them a
+  small weight. Negative residuals get the opposite weight $1-\tau_i$.
+\end{frame}
+
+\section{Particle DQN}
+
+\begin{frame}{Particle DQN}
   \small
   QR-DQN represents
   \[
@@ -996,15 +1008,19 @@
   \]
   and treat the $z_i$ as unrestricted deterministic samples.
 
-  \begin{block}{Overview of Particle Distributional DQN}
+  \begin{block}{Overview of Particle DQN}
     \begin{enumerate}
-      \item Define a divergence $d$ between return distributions.
+      \item Define a metric $d$ between return distributions.
       \item Study whether $\T^\pi$ contracts under
         $\bar d(\eta,\nu)=\sup_{x,a}d(\eta(x,a),\nu(x,a))$.
       \item Use the empirical version of $d$ as a differentiable DQN loss.
     \end{enumerate}
   \end{block}
-  This is a different route from deriving a quantile regression loss.
+  \pause
+  \begin{center}
+    \textcolor{red}{The metric NEEDS to be differentiable in the particles, this DOES NOT hold for the standard Wasserstein.}
+  \end{center}
+
 \end{frame}
 
 \begin{frame}{MMD-DQN: Maximum Mean Discrepancy}
@@ -1025,12 +1041,13 @@
     =
     \E k(Z,Z')+\E k(Y,Y')-2\E k(Z,Y).
   \]
-  \begin{itemize}
-    \item If $k$ is characteristic, MMD is a metric on probability measures.
-    \item Gaussian kernels are characteristic, so they can distinguish
-      distributions.
-    \item The metric geometry depends completely on the kernel.
-  \end{itemize}
+  \begin{block}{Characteristic kernel}
+    $k$ is characteristic if the embedding $\mu\mapsto\psi_\mu$ is injective:
+    \[
+      \psi_\mu=\psi_\nu \quad\Longrightarrow\quad \mu=\nu.
+    \]
+    For all such $k$ the MMD is a metric.
+  \end{block}
 \end{frame}
 
 \begin{frame}{MMD-DQN: Supremum Metric and Contraction}
@@ -1053,7 +1070,7 @@
   Here $b_{\gamma,0}(z)=\gamma z$ and $\alpha$ is the scale-sensitivity order.
 
   \begin{block}{Theorem idea}
-    For mixtures of shift-invariant, scale-sensitive kernels,
+    For mixtures of such kernels, the distributional Bellman operator is
     \[
       \operatorname{MMD}_{\infty,k}(\T^\pi\eta,\T^\pi\nu)
       \leq
@@ -1065,54 +1082,59 @@
   suitable MMD kernels.
 \end{frame}
 
-\begin{frame}{MMD-DQN: Important Caveat}
+\begin{frame}{MMD-DQN: Empirics are weird}
   \small
-  The paper separates theory and best empirical practice:
+  Theory and empirical observations do not align.
   \begin{itemize}
     \item Unrectified kernels such as
       \[
-        k_\alpha(x,y)=-|x-y|^\alpha,\qquad 0<\alpha<2,
+        k_\alpha(x,y)=-\|x-y \|^\alpha,
       \]
-      give the clean contraction theorem.
-    \item Gaussian kernels are characteristic and useful for moment matching.
-    \item But the paper proves that $\T^\pi$ is \emph{not} a contraction in
-      MMD for Gaussian kernels in general.
-  \end{itemize}
+      fulfill the assumption of the Theorem.
+    \item They prove that $\T^\pi$ is \emph{not} a contraction in
+      MMD for Gaussian kernels in general. \\
+  \end{itemize} 
 
-  \begin{block}{Interpretation}
-    MMD-DQN uses Gaussian-kernel MMD because it gives a practical particle loss:
-    it attracts particles to Bellman target samples and repels particles from
-    collapsing. The contraction theorem motivates the metric framework, but
-    does not literally certify the Gaussian version used in Atari experiments.
-  \end{block}
+  Yet, in practice the Gaussian Kernel yields better results. 
 \end{frame}
 
 \begin{frame}{MMD-DQN: Learning with Particles}
   \small
-  The network outputs particles
-  \[
-    Z_w(x,a)=\{z_i(x,a;w)\}_{i=1}^m,
-    \qquad
-    \eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}.
-  \]
-  For a transition $(x,a,r,x')$, construct Bellman target particles
-  \[
-    y_j=r+\gamma z_j(x',a^*;\widetilde w),
-    \qquad
-    a^*\in\arg\max_{a'}\frac1m\sum_j z_j(x',a';\widetilde w).
-  \]
-  The biased empirical MMD loss is
-  \[
-    L_{\operatorname{MMD}}(w)
-    =
-    \frac1{m^2}\sum_{i,i'}k(z_i,z_{i'})
-    +
-    \frac1{m^2}\sum_{j,j'}k(y_j,y_{j'})
-    -
-    \frac2{m^2}\sum_{i,j}k(z_i,y_j).
-  \]
-  Thus the metric is not only an evaluation tool: it becomes the backpropagated
-  Bellman error between two empirical return distributions.
+  \setlength{\tabcolsep}{0.35em}
+  \begin{center}
+  \begin{tabular}{p{0.08\textwidth}p{0.84\textwidth}}
+    \hline
+    \multicolumn{2}{l}{\textbf{Algorithm: MMD-DQN particle update}}\\
+    \hline
+    \multicolumn{2}{l}{\textbf{Require:} number of particles $m$, kernel $k$,
+      discount $\gamma$, target weights $\widetilde w$}\\
+    \multicolumn{2}{l}{\textbf{Input:} sample transition $(x,a,r,x')$}\\[0.2em]
+    1 & Network outputs current particles
+      $Z_w(x,a)=\{z_i(x,a;w)\}_{i=1}^m$,
+      $\eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}$.\\[0.3em]
+    2 & Select greedy next action
+      \[
+        a^*\in\arg\max_{a'}\frac1m\sum_{j=1}^m
+        z_j(x',a';\widetilde w).
+      \]\\[-0.4em]
+    3 & Construct Bellman target particles
+      \[
+        y_j=r+\gamma z_j(x',a^*;\widetilde w),
+        \qquad 1\leq j\leq m.
+      \]\\[-0.4em]
+    4 & \textbf{Output:} Empirical MMD Bellman loss
+      \[
+        L_{\operatorname{MMD}}(w)
+        =
+        \frac1{m^2}\sum_{i,i'}k(z_i,z_{i'})
+        +
+        \frac1{m^2}\sum_{j,j'}k(y_j,y_{j'})
+        -
+        \frac2{m^2}\sum_{i,j}k(z_i,y_j).
+      \]\\[-0.4em]
+    \hline
+  \end{tabular}
+  \end{center}
 \end{frame}
 
 \begin{frame}{SinkhornDRL: Regularized Wasserstein Loss}
@@ -1133,151 +1155,140 @@
     +
     \varepsilon\,\operatorname{KL}(\pi\mid\mu\otimes\nu).
   \]
-  The debiased Sinkhorn divergence is
+  The sinkhorn divergence is then given by 
   \[
-    S^\varepsilon_c(\mu,\nu)
+    \overline W_{c,\varepsilon}(\mu,\nu)
     =
     \operatorname{OT}^{\varepsilon}_c(\mu,\nu)
     -\frac12\operatorname{OT}^{\varepsilon}_c(\mu,\mu)
     -\frac12\operatorname{OT}^{\varepsilon}_c(\nu,\nu).
   \]
-  It is a regularized Wasserstein-type loss: smoother than exact OT and
-  computable by Sinkhorn iterations.
+\end{frame}
+
+\begin{frame}{Reguralized Wasserstein}
+  \begin{figure}[h]
+\centering
+\includegraphics[width=0.8\linewidth]{images/2026-07-01-13-37-43.png}
+\caption{Comparison of different regularized Wasserstein distances. }
+\label{fig:main-2026-07-01-13-37-43}
+\end{figure}
 \end{frame}
 
 \begin{frame}{SinkhornDRL: Contraction Result}
   \small
-  Define the supremal Sinkhorn divergence
+  Sun et al. use the standard cost $
+    c(x,y)=\|x-y\|^\alpha,$
+  and define
   \[
-    \bar S^\varepsilon_c(\eta,\nu)
+    \overline W^\infty_{c,\varepsilon}(\eta,\nu)
     =
-    \sup_{x,a}S^\varepsilon_c(\eta(x,a),\nu(x,a)).
+    \sup_{x,a}\overline W_{c,\varepsilon}(\eta(x,a),\nu(x,a)).
   \]
-  The paper analyzes contraction through two properties:
-  \begin{itemize}
-    \item \textbf{Sum invariance:} adding the same independent reward noise does
-      not increase the distance.
-    \item \textbf{Scale sensitivity:} discounting returns shrinks the distance.
-  \end{itemize}
-  For the cost family used in their theorem, the distributional Bellman operator
-  satisfies a bound of the form
+  With
   \[
-    \bar S^\varepsilon_c(\T^\pi\eta,\T^\pi\nu)
-    \leq
-    \rho_{\varepsilon,\gamma}
-    \bar S^\varepsilon_c(\eta,\nu),
-    \qquad
-    \rho_{\varepsilon,\gamma}<1.
+    \lambda_\varepsilon(\mu,\nu)
+    =
+    \frac{\varepsilon\,\operatorname{KL}(\pi^*\mid\mu\otimes\nu)}
+         {\overline W_{c,\varepsilon}(\mu,\nu)}
+    \in(0,1),
   \]
-  The constant depends on $\gamma$, the regularization $\varepsilon$, the cost
-  order, and the return-distribution set of the finite MDP.
-\end{frame}
-
-\begin{frame}{SinkhornDRL: Interpolating Wasserstein and MMD}
-  \small
-  The paper emphasizes that Sinkhorn divergence interpolates between two
-  familiar geometries:
+  the Bellman operator is at least
   \[
-    \varepsilon\to0
-    \quad\Rightarrow\quad
-    S^\varepsilon_c \text{ behaves like Wasserstein/OT},
+    \overline\Delta_\varepsilon(\gamma,\alpha)
+    =
+    \gamma^\alpha\!\left(1-\sup_{\mu,\nu}\lambda_\varepsilon(\mu,\nu)\right)
+    +\sup_{\mu,\nu}\lambda_\varepsilon(\mu,\nu)
+    \in(\gamma^\alpha,1)
   \]
-  \[
-    \varepsilon\to\infty
-    \quad\Rightarrow\quad
-    S^\varepsilon_c \text{ behaves like an MMD-type distance}.
-  \]
-  Correspondingly, their theorem recovers contraction behavior consistent with
-  both endpoints, and for finite $\varepsilon$ proves a genuine contraction with
-  a factor between the Wasserstein contraction factor and $1$.
-
-  \begin{block}{Why this matters}
-    Regularization makes the transport plan smoother and the loss easier to
-    optimize, but it weakens the contraction factor compared with exact
-    Wasserstein. The point is controlled trade-off, not free improvement.
-  \end{block}
+  contractive under $\overline W^\infty_{c,\varepsilon}$.
 \end{frame}
 
 \begin{frame}{SinkhornDRL: Learning with Particles}
   \small
-  As in MMD-DQN, the return distribution is represented by particles:
-  \[
-    \eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}.
-  \]
-  For a Bellman target particle set $\{y_j\}_{j=1}^m$, form the cost matrix
-  \[
-    C_{ij}=c(z_i,y_j).
-  \]
-  With uniform weights $a=b=(1/m,\ldots,1/m)$, Sinkhorn iterations approximate
-  \[
-    \min_{\Pi\in U(a,b)}
-    \sum_{i,j}\Pi_{ij}C_{ij}
-    +
-    \varepsilon\sum_{i,j}\Pi_{ij}(\log\Pi_{ij}-1),
-  \]
-  followed by the self-cost debiasing terms in $S^\varepsilon_c$.
-
-  \begin{block}{DQN update}
-    Replace the QR-DQN quantile Huber loss by the empirical Sinkhorn divergence
-    between current particles and Bellman target particles.
-  \end{block}
-\end{frame}
-
-\begin{frame}{Metric-Based Particle DQN: Comparison}
-  \small
+  \setlength{\tabcolsep}{0.35em}
   \begin{center}
-  \begin{tabular}{lccc}
-    \textbf{Method} & \textbf{Representation} & \textbf{Metric/loss} & \textbf{Theory} \\
+  \begin{tabular}{p{0.08\textwidth}p{0.84\textwidth}}
     \hline
-    QR-DQN & quantiles & quantile Huber & $W_1$ projection \\
-    MMD-DQN & particles & MMD & conditional contraction \\
-    SinkhornDRL & particles & Sinkhorn divergence & contraction theorem \\
+    \multicolumn{2}{l}{\textbf{Algorithm: SinkhornDRL particle update}}\\
+    \hline
+    \multicolumn{2}{l}{\textbf{Require:} number of particles $m$, cost $c$,
+      regularization $\varepsilon$, discount $\gamma$, target weights $\widetilde w$}\\
+    \multicolumn{2}{l}{\textbf{Input:} sample transition $(x,a,r,x')$}\\[0.2em]
+    1 & Network outputs current particles
+      $Z_w(x,a)=\{z_i(x,a;w)\}_{i=1}^m$,
+      $\eta_w(x,a)=\frac1m\sum_i\delta_{z_i(x,a;w)}$.\\[0.3em]
+    2 & Select greedy next action
+      \[
+        a^*\in\arg\max_{a'}\frac1m\sum_{j=1}^m
+        z_j(x',a';\widetilde w).
+      \]\\[-0.4em]
+    3 & Construct Bellman target particles
+      \[
+        y_j=r+\gamma z_j(x',a^*;\widetilde w),
+        \qquad 1\leq j\leq m.
+      \]\\[-0.4em]
+    4 & \textbf{Output:} approximate Wasserstein using Sinkhorn:
+      \[
+        L_{\operatorname{RW}}(w)
+        =
+        {\overline W}_{c,\varepsilon}
+        \!\left(
+          \frac1m\sum_i\delta_{z_i(x,a;w)},
+          \frac1m\sum_j\delta_{y_j}
+        \right).
+      \]\\[-0.4em]
+    \hline
   \end{tabular}
   \end{center}
+\end{frame}
 
-  \vspace{0.8em}
-  The common Bellman target is still
+
+\begin{frame}{SinkhornDRL: Interpolating Wasserstein and MMD}
+  \small
+  The regularization parameter moves between Wasserstein and MMD:
   \[
-    y_j=r+\gamma z_j(x',a^*;\widetilde w),
-    \qquad
-    a^*=\arg\max_{a'}\frac1m\sum_jz_j(x',a';\widetilde w).
+    \varepsilon\to0
+    \quad\Rightarrow\quad
+    \overline W_{c,\varepsilon}(\mu,\nu)\to 2W_c^\alpha(\mu,\nu),
   \]
-  The new idea is that once a distribution metric has a Bellman contraction
-  story, its empirical sample version can be used directly as a learning
-  objective.
+  \[
+    \varepsilon\to+\infty
+    \quad\Rightarrow\quad
+    \overline W_{c,\varepsilon}(\mu,\nu)\to
+    \operatorname{MMD}_{k_\alpha}^2(\mu,\nu),
+    \qquad k_\alpha=-c.
+  \]
+
+  \vspace{0.4em}
+  \scriptsize
+  \setlength{\tabcolsep}{0.3em}
+  \begin{tabular}{p{0.15\textwidth}p{0.25\textwidth}p{0.23\textwidth}p{0.28\textwidth}}
+    \hline
+    \textbf{Algorithm} & \textbf{Distribution divergence} &
+    \textbf{Representation $Z_\theta$} & \textbf{Rate of $\T^\pi$}\\
+    \hline
+    C51 & Cramer distance & Categorical distribution & $\sqrt{\gamma}$\\
+    QR-DQN-1 & Wasserstein distance & Quantiles & $\gamma$\\
+    MMD-DQN & MMD & Samples & $\gamma^{\alpha/2}$ $(k_\alpha)$\\
+    SinkhornDRL & Sinkhorn divergence & Samples &
+      $\gamma$ $(\varepsilon\to0)$,
+      $\gamma^{\alpha/2}$ $(\varepsilon\to+\infty)$\\
+    \hline
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{SinkhornDRL: Atari Comparison}
+  \begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{images/2026-07-01-14-35-50.png}
+    \caption{Comparison of various algorithms on 55 Atari games.}
+    \label{fig:main-2026-07-01-14-35-50}
+  \end{figure}
 \end{frame}
 
 
-\begin{frame}{Takeaways}
-  \begin{enumerate}
-    \item Linear approximation introduces state aliasing and a weighted projection
-      problem; the sampling distribution is central to stability.
-    \item Semi-gradient TD tracks a projected Bellman process, and target weights
-      make that relationship explicit.
-    \item Linear QTD and CTD make distribution \emph{parameters} linear in features.
-    \item Deep methods learn the features and retain the same prediction--target--
-      semi-gradient structure.
-    \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
-      output distribution; that choice also shapes the learned representation.
-    \item MMD-DQN and SinkhornDRL are metric-first particle methods: they define
-      a distribution distance, analyze Bellman contraction, then use the
-      empirical distance as the DQN loss.
-  \end{enumerate}
-\end{frame}
-
-\begin{frame}{References}
-  \footnotesize
-  \begin{itemize}
-    \item Bellemare, Dabney, Rowland (2023): \emph{Distributional Reinforcement Learning}, Chapters 9--10.
-    \item Bellemare, Dabney, Munos (2017): A Distributional Perspective on Reinforcement Learning.
-    \item Dabney et al. (2018): Distributional Reinforcement Learning with Quantile Regression.
-    \item Dabney et al. (2018): Implicit Quantile Networks for Distributional Reinforcement Learning.
-    \item Nguyen et al. (2020): Distributional Reinforcement Learning via Moment Matching.
-    \item Sun et al. (2022): Distributional Reinforcement Learning with Regularized Wasserstein Loss.
-  \end{itemize}
-\end{frame}
-
-
+\iffalse
+\section{IQN and Risk-Sensitive Prediction}
 
 \begin{frame}{Chapter 10: Why This Is Not a DQN Theorem}
   C51, QR-DQN, and IQN combine several ingredients:
@@ -1369,5 +1380,34 @@
   selected by the mean.
 \end{frame}
 
+\section{Conclusion}
+
+\begin{frame}{Takeaways}
+  \begin{enumerate}
+    \item Linear approximation introduces state aliasing and a weighted projection
+      problem; the sampling distribution is central to stability.
+    \item Semi-gradient TD tracks a projected Bellman process, and target weights
+      make that relationship explicit.
+    \item Linear QTD and CTD make distribution \emph{parameters} linear in features.
+    \item Deep methods learn the features and retain the same prediction--target--
+      semi-gradient structure.
+    \item C51, QR-DQN, and IQN differ mainly in how they parameterize and train the
+      output distribution; that choice also shapes the learned representation.
+    \item MMD-DQN and SinkhornDRL are metric-first particle methods: they define
+      a distribution distance, analyze Bellman contraction, then use the
+      empirical distance as the DQN loss.
+  \end{enumerate}
+\end{frame}
+
+\fi
+
+\begin{frame}{References}
+  \footnotesize
+  \begin{itemize}
+    \item Bellemare, Dabney, Rowland (2023): \emph{Distributional Reinforcement Learning}
+    \item Nguyen et al. (2020): Distributional Reinforcement Learning via Moment Matching.
+    \item Sun et al. (2022): Distributional Reinforcement Learning with Regularized Wasserstein Loss.
+  \end{itemize}
+\end{frame}
 
 \end{document}
