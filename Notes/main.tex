@@ -178,6 +178,8 @@ $$
   \sum_{t=0}^{\infty}\gamma^tR_t.
 $$
 
+using this return distribution, one can naturally define the value function that tells us for each state, what the expected return is. 
+
 \begin{definition}{Value function and return distribution}{}
 The state-value function is the expected return
 $$
@@ -191,7 +193,7 @@ $$
   =
   \operatorname{Law}(G^\pi(x)).
 $$
-Thus the scalar value function is the first moment of the return distribution:
+By definition, we can also write the value function as an integral using the return distribution as a measure. 
 $$
   V^\pi(x)
   =
@@ -199,16 +201,18 @@ $$
 $$
 \end{definition}
 
+Central to Reinforcement learning is the Bellman operator and its fixed point equation.
+
 \begin{definition}{Bellman operator for scalar values}{}
 For a function $V:\X\to\R$, the Bellman operator for policy $\pi$ is
 $$
   (\T^\pi V)(x)
   =
-  \E_{A\sim\pi(\cdot\mid x)}
+  \E_{a\sim\pi(\cdot\mid x)}
   \left[
     \E\left[
       R+\gamma V(X^{\prime})
-      \mid X=x,A
+      \mid X=x,a
     \right]
   \right].
 $$
@@ -220,8 +224,7 @@ $$
 $$
 \end{definition}
 
-The scalar Bellman equation comes from a stronger identity at the level of
-random variables. With
+There exists a stronger version of this Bellman equation, which is its distributional variant. 
 $$
   A\sim\pi(\cdot\mid x),
   \qquad
@@ -247,7 +250,7 @@ $$
 $$
 
 \begin{definition}{Distributional Bellman operator}{}
-For $r,z\in\R$, define the bootstrap map
+For $r,z\in\R$, define what in \cite{bellemare2023distributional} is called the bootstrap map via
 $$
   b_{r,\gamma}(z)=r+\gamma z.
 $$
@@ -263,11 +266,11 @@ Bellman operator is
 $$
   (\T^\pi\eta)(x)
   =
-  \E_{A\sim\pi(\cdot\mid x)}
+  \E_{a\sim\pi(\cdot\mid x)}
   \left[
     \E\left[
       (b_{R,\gamma})_\#\eta(X^{\prime})
-      \mid X=x,A
+      \mid X=x,a
     \right]
   \right].
 $$
@@ -321,7 +324,7 @@ $$
   \qquad
   F_\eta^{-1}(\tau)=\inf\{z\in\R:F_\eta(z)\geq\tau\}.
 $$
-Two standard finite representations are:
+The two standard representations are:
 $$
   \text{categorical:}\qquad
   \eta(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i},
@@ -337,15 +340,13 @@ $$
   \qquad
   \theta_i(x)\approx F_{\eta(x)}^{-1}(\tau_i).
 $$
-\end{definition}
-
-If $\X$ is large, storing a scalar value for every state is already expensive;
-storing a full probability distribution for every state is even more so. The
-rest of the notes is about approximation: first for scalar values, and then for
-return distributions.
+\end{definition} 
+\vspace*{0.5cm}
+If $\X$ is large, storing a scalar value for every state is already expensive.
+In our case, we would need to store a full probability distribution for every state which is even more expensive. 
+Hence, the rest of the notes which are based on \cite{bellemare2023distributional} will focus on value and action value function approximation, starting with the linear case.
 
 \section{Linear Function Approximation}
-
 We first discuss linear approximation for the state-value function
 $$
   V^\pi:\X\to\R.
@@ -977,8 +978,12 @@ $$
   \sup_{x,a}\MMD_k(\eta(x,a),\nu(x,a)).
 $$
 The contraction theorem does not hold for arbitrary characteristic kernels.
-The clean theorem assumes kernels that are translation invariant and homogeneous
-under discount scaling in the following sense:
+The clean theorem in \cite{nguyen2020moment} assumes kernels that are
+translation invariant and homogeneous under discount scaling in the following
+sense:
+
+\begin{theorem}{MMD Bellman contraction, \cite{nguyen2020moment}}{}
+Assume that the kernel is translation invariant,
 $$
   k(x+c,y+c)=k(x,y)
 $$
@@ -1000,6 +1005,8 @@ $$
   \gamma^{\alpha_*/2}
   \MMD_{\infty,k}(\eta,\nu).
 $$
+\end{theorem}
+
 Hence the metric-first story mirrors the Wasserstein contraction story: if the
 chosen metric contracts under the affine Bellman shift and mixing does not
 expand it, fixed-point arguments become available.
@@ -1143,7 +1150,10 @@ $$
 \begin{theorem}{Sinkhorn Bellman contraction
 \cite[Theorem 1]{sun2022regularized}}{}
 Sun et al. show that the Bellman operator is contractive with a factor bounded
-by
+by the following result from \cite{sun2022regularized}.
+
+\begin{theorem}{Regularized Wasserstein Bellman contraction, \cite{sun2022regularized}}{}
+Define
 $$
   \overline\Delta_\varepsilon(\gamma,\alpha)
   =
