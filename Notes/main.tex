@@ -20,6 +20,7 @@
 \usepackage[table]{xcolor}
 \usepackage{multicol}
 \usepackage{mathtools}
+\usepackage{graphicx}
 \usepackage{hanging}
 \usepackage{longtable}
 \usepackage{aligned-overset}
@@ -42,6 +43,7 @@
 \makeatother
 
 \newcommand*{\QED}{\hfill\ensuremath{\square}} 
+\newenvironment{proof}{\par\smallskip\noindent\textit{Proof.}\ }{\QED\par\smallskip}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\Z}{\mathbb{Z}}
@@ -88,6 +90,14 @@
         boxsep=5pt,
         left=5pt, right=5pt, top=5pt, bottom=5pt
     }{thm}
+
+\newtcbtheorem[auto counter]{proposition}{Proposition}{
+  theorem name and number,%
+        colframe=gray,%
+        fonttitle=\bfseries,
+        boxsep=5pt,
+        left=5pt, right=5pt, top=5pt, bottom=5pt
+    }{prop}
 
 \newtcbtheorem[auto counter]{definition}{Definition}{
   theorem name and number,%
@@ -263,9 +273,46 @@ $$
 $$
 The return-distribution function $\eta_\pi$ is its fixed point:
 $$
-  \eta_\pi=\T^\pi\eta_\pi.
+\eta_\pi=\T^\pi\eta_\pi.
 $$
 \end{definition}
+
+\begin{theorem}{Wasserstein contraction of the distributional Bellman operator}{}
+For $p\in[1,\infty]$, let
+$$
+  \overline w_p(\eta,\nu)
+  =\sup_{x\in\X}w_p(\eta(x),\nu(x)).
+$$
+Then
+$$
+  \overline w_p(\T^\pi\eta,\T^\pi\nu)
+  \leq\gamma\,\overline w_p(\eta,\nu).
+$$
+\end{theorem}
+
+\begin{proof}
+We give the coupling proof from \cite[Proposition 4.15]{bellemare2023distributional}
+for $p<\infty$. For each state $y$, take an optimal coupling
+$(Z(y),Z^{\prime}(y))$ of $\eta(y)$ and $\nu(y)$. Couple the two Bellman updates by
+using the same sampled action, reward, and next state in both. Conditional on
+$X=x$, the resulting pair
+$$
+  \widetilde Z=R+\gamma Z(X^{\prime}),
+  \qquad
+  \widetilde Z^{\prime}=R+\gamma Z^{\prime}(X^{\prime})
+$$
+is a valid coupling of $(\T^\pi\eta)(x)$ and $(\T^\pi\nu)(x)$. Therefore
+$$
+\begin{aligned}
+ w_p^p((\T^\pi\eta)(x),(\T^\pi\nu)(x))
+ &\leq \E[|\widetilde Z-\widetilde Z^{\prime}|^p\mid X=x]\\
+ &=\gamma^p\E[|Z(X^{\prime})-Z^{\prime}(X^{\prime})|^p\mid X=x]\\
+ &\leq\gamma^p\sup_{y\in\X}w_p^p(\eta(y),\nu(y)).
+\end{aligned}
+$$
+Taking the $p$th root and then the supremum over $x$ proves the claim. The
+$p=\infty$ case uses the same coupling and the essential supremum.
+\end{proof}
 
 \begin{definition}{Finite representations of return distributions}{}
 For a probability measure $\eta\in\p(\R)$, let
@@ -303,18 +350,11 @@ We first discuss linear approximation for the state-value function
 $$
   V^\pi:\X\to\R.
 $$
-This is the cleanest setting because the input is only the state. This section
-follows Chapter 9 of \cite{bellemare2023distributional}.
+ This section follows parts of Chapter 9 of \cite{bellemare2023distributional}.
 
-\subsection{Function Approximation and Aliasing}
+\subsection{Function Approximation}
 
-In a small state space, $V^\pi$ can be stored as a table with one number per
-state. Function approximation instead shares parameters across states. This is
-necessary when $\X$ cannot be enumerated and it permits generalization to states
-not yet observed. The cost is \emph{aliasing}: a shared parameter changes the
-prediction at several states. If two aliased states require different values,
-no parameter vector represents both exactly. With bootstrapping, the resulting
-error may propagate to states that are not themselves aliased.
+In linear function approximation, we represent the value function as a linear combination of features. Similar to neural networks, the features here are allowed to be nonlinear.
 
 \begin{definition}{State representation and linear value approximation}{}
 Let $n\in\N$. A state representation is a mapping
@@ -346,21 +386,26 @@ $$
   \F_\phi=\{\Phi w:w\in\R^n\}.
 $$
 
-For action values, either take $\phi:\X\times\A\to\R^n$ and
-$Q_w(x,a)=\phi(x,a)^\top w$, or use a common state representation with one
-weight vector per action, $Q_w(x,a)=\phi(x)^\top w_a$.
+The same can be done for action value function using $\phi:\X\times\A\to\R^n$ and
+$Q_w(x,a)=\phi(x,a)^\top w$. Since we want to focus on what the distributional part changes about the approximation later, we will mostly discuss the state value case. 
 
-\subsection{Optimal Approximation in a Weighted Norm}
+\subsection{Optimal Linear Value Function Approximation}
 
-Let $\xi\in\p(\X)$ express the relative importance of the states. Define
+As states above, the equation $$V_w = \Phi w$$ defines a linear system, which won't have a solution in general. 
+Instead, a standard way to find the 'best' solution is to minimize the squared error. This can also be done here, however in \cite{bellemare2023distributional} it is mentioned that in RL we are often not equally interested in all states, hence we introduce a weighted least squares loss. \\
+
+So, let $\xi\in\p(\X)$ be the relative importance of the states and define
 $$
   \norm{V-V^{\prime}}_{\xi,2}
   =\left(\sum_{x\in\X}\xi(x)(V(x)-V^{\prime}(x))^2\right)^{1/2}.
 $$
-The best approximation to $V^\pi$ solves
+we are thus interested in the best approximation to $V^\pi$ which solves
 $$
   \min_{w\in\R^n}\norm{V^\pi-V_w}_{\xi,2}.
 $$
+and this is given by a weighted normal equation. 
+
+\begin{theorem}{Weighted normal equation}{}
 Let $\Xi=\operatorname{diag}(\xi(x):x\in\X)$. If $\xi$ has full support and
 the columns of $\Phi$ are linearly independent, the unique solution is
 $$
@@ -368,11 +413,13 @@ $$
 $$
 Thus the state weighting $\xi$ is part of the approximation problem: changing
 how often states are sampled generally changes the best attainable weights.
+\end{theorem}
+The problem is, we can't iterate the Bellman operator since after applying it, we might not have a linear representation anymore. This motivates the following definition of a projected Bellman operator. 
 
 \subsection{The Projected Bellman Operator}
 
-In general, $V\in\F_\phi$ does not imply $\T^\pi V\in\F_\phi$. Define the
-weighted orthogonal projection $\Pi_{\phi,\xi}$ by
+\begin{definition}{Projected Bellman operator}{}
+Define the weighted orthogonal projection $\Pi_{\phi,\xi}$ by
 $$
   (\Pi_{\phi,\xi}V)(x)=\phi(x)^\top w^*,
   \qquad
@@ -382,11 +429,13 @@ Approximate dynamic programming iterates
 $$
   V_{k+1}=\Pi_{\phi,\xi}\T^\pi V_k.
 $$
-Projection removes the component of the Bellman update that the features cannot
-represent. Repeated projection can compound approximation error.
+\end{definition}
 
-Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$. Then
-$P^\pi$ and $\Pi_{\phi,\xi_\pi}$ are nonexpansions in the
+Luckily, one can still show that this projected Bellman operator is a contraction and that the fixed point of the projected Bellman operator is close to the best approximation of the true value function. 
+Hence, by iteration the Bellman equation like this, we will converge to something that is close to what we are trying to approximate!
+
+\begin{theorem}{Projected Bellman contraction and error bound}{}
+Let $\xi_\pi$ be a fully supported steady-state distribution under $\pi$. Then $\Pi_{\phi,\xi_\pi}$ is a nonexpansion in the
 $\xi_\pi$-weighted $L_2$ norm. Consequently,
 $$
   \norm{\Pi_{\phi,\xi_\pi}\T^\pi V-
@@ -398,88 +447,49 @@ $$
   \widehat V^\pi
   =\Pi_{\phi,\xi_\pi}\T^\pi\widehat V^\pi,
 $$
-and the book's sharper orthogonal-projection argument gives
+Additionally, they show that it holds
 $$
   \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}
   \leq\frac{1}{\sqrt{1-\gamma^2}}
   \norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}.
 $$
-The fixed point $\widehat V^\pi$ is generally not the direct best approximation
-$\Pi_{\phi,\xi_\pi}V^\pi$.
+which means that the fixed point of the projected Bellman operator is close to the best approximation.
+\end{theorem}
 
-\subsection{Monte Carlo and Semi-Gradient TD}
+\begin{proof}
+The proofs follows the argument from \cite[Theorem 9.8]{bellemare2023distributional}.
+The transition operator $P^\pi$ is nonexpansive and due to the orthogonality of the projection we have for every $U$,
+$$
+  U=\Pi_{\phi,\xi_\pi}U+(I-\Pi_{\phi,\xi_\pi})U
+$$
+is an orthogonal decomposition in the $\xi_\pi$-weighted inner product. Hence,
+by Pythagoras,
+$$
+  \norm{U}_{\xi_\pi,2}^2
+  =\norm{\Pi_{\phi,\xi_\pi}U}_{\xi_\pi,2}^2
+   +\norm{(I-\Pi_{\phi,\xi_\pi})U}_{\xi_\pi,2}^2,
+$$
+so $\norm{\Pi_{\phi,\xi_\pi}U}_{\xi_\pi,2}\leq
+\norm{U}_{\xi_\pi,2}$. Thus the composition with $\T^\pi$ is a
+$\gamma$-contraction. Banach's fixed-point
+theorem gives a unique fixed point and convergence of iterating the projected Bellman operator. 
 
-For independent state--return samples $(x_k,g_k)$, stochastic gradient descent
-on $(g_k-\phi(x_k)^\top w)^2$ gives
+For the error estimate, we use orthogonality of the projection and
+$V^\pi=\T^\pi V^\pi$ which yields
 $$
-  w\leftarrow w+\alpha_k
-  (g_k-\phi(x_k)^\top w)\phi(x_k).
+\begin{aligned}
+ \norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}^2
+ &=\norm{\widehat V^\pi-\Pi_{\phi,\xi_\pi}V^\pi}_{\xi_\pi,2}^2
+   +\norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}^2\\
+ &\leq\gamma^2\norm{\widehat V^\pi-V^\pi}_{\xi_\pi,2}^2
+   +\norm{\Pi_{\phi,\xi_\pi}V^\pi-V^\pi}_{\xi_\pi,2}^2.
+\end{aligned}
 $$
+Rearranging and taking square roots proves the bound.
+\end{proof}
 
-For a sampled transition $(x_k,a_k,r_k,x^{\prime}_k)$, replace $g_k$ by a
-bootstrapped target. The TD error is
-$$
-  \delta_k
-  =
-  r_k+\gamma V_w(x_k^{\prime})-V_w(x_k)
-  =
-  r_k+\gamma\phi(x_k^{\prime})^\top w-\phi(x_k)^\top w.
-$$
-The semi-gradient update differentiates only the current prediction
-$V_w(x_k)$, treating the bootstrap target as fixed:
-$$
-  w\leftarrow w+\alpha_k\delta_k\phi(x_k).
-$$
-Equivalently, if a fixed target vector $\widetilde w$ is used, the update is
-SGD on
-$$
-  \frac12
-  \left(
-    r_k+\gamma\phi(x_k^{\prime})^\top\widetilde w
-    -\phi(x_k)^\top w
-  \right)^2.
-$$
-At a projected Bellman fixed point $\widehat V^\pi=\Phi\widehat w$, the
-expected TD error is orthogonal to all features:
-$$
-  \E_\pi\left[
-    \left(
-      R+\gamma\phi(X^{\prime})^\top\widehat w
-      -\phi(X)^\top\widehat w
-    \right)\phi(X)
-  \right]=0.
-$$
-This is the sample-based form of the projected Bellman equation. The
-representation $\phi$ is therefore not a cosmetic choice: it determines which
-Bellman fixed points are expressible.
-
-The same idea works for action-values
-$$
-  Q^\pi:\X\times\A\to\R.
-$$
-Now the feature map takes a state-action pair,
-$$
-  \phi:\X\times\A\to\R^d,
-$$
-and the approximation is
-$$
-  Q_w(x,a)=\phi(x,a)^\top w.
-$$
-The TD error for policy evaluation becomes
-$$
-  \delta_t
-  =
-  r_t+\gamma Q_{w_t}(x^{\prime}_t,a^{\prime}_t)-Q_{w_t}(x_t,a_t),
-  \qquad
-  a^{\prime}_t\sim\pi(\cdot\mid x^{\prime}_t),
-$$
-with update
-$$
-  w_{t+1}=w_t+\alpha_t\delta_t\phi(x_t,a_t).
-$$
-We will use this action-value version below because QR-DQN and the deep
-distributional algorithms are control methods: the agent must compare actions in
-the same state, and this comparison is immediate from $Q(x,a)$.
+However, while this result is nice, performing full Bellman update is expensive. A more practical tool is TD learning which can also be done in the approximate regime.
+Since we again want to focus on the distributional side, we dont mention it here and refer to \cite[Chapter 9.4]{bellemare2023distributional} for more details. 
 
 \section{Distributional Value Approximation}
 
@@ -530,6 +540,7 @@ Taking means on both sides recovers the usual Bellman equation for $Q^\pi$, but
 the distributional equation is stronger: it describes the whole random return,
 not only its expectation.
 
+\begin{definition}{Quantile return-distribution approximation}{}
 Just as linear TD restricts $Q$ to a class $\mathcal{Q}_\phi$, distributional
 methods restrict $\eta$ to a class of approximate distributions. The quantile
 family is one of the most important such choices. For a distribution $\nu$ with
@@ -572,6 +583,7 @@ $$
 The scalar approximation $Q_w(x,a)$ has become a measure-valued approximation
 $\eta_W(x,a)$. The same features are now asked to explain not only the average
 return, but also the spread, asymmetry, and tail behavior of the return.
+\end{definition}
 
 \section{Quantile TD}
 
@@ -593,6 +605,7 @@ $$
   z_i=\theta_i(x_t,a_t),
   \qquad i=1,\ldots,N.
 $$
+\begin{definition}{Quantile TD loss}{}
 Quantile regression uses the asymmetric absolute loss
 $$
   \rho_\tau(u)
@@ -617,6 +630,7 @@ $$
   =
   (f_{r_t,\gamma})_{\#}\eta_W(x^{\prime}_t,a^{\prime}_t).
 $$
+\end{definition}
 
 For linear quantiles, a subgradient update for each head is
 $$
@@ -643,6 +657,7 @@ $$
 The scalar TD target is replaced by a Bellman target distribution, and the
 single scalar TD error is replaced by all pairwise quantile residuals.
 
+\begin{definition}{Quantile Huber loss}{}
 In implementations, one often replaces $\rho_\tau$ by a quantile Huber loss.
 This is the smooth loss used in QR-DQN; see the treatment in
 \cite[Chapter 10]{bellemare2023distributional}. Define
@@ -673,6 +688,16 @@ $$
 The Huber version keeps the asymmetric quantile penalty but smooths the
 non-differentiability around zero, which is useful when the quantile locations
 are produced by a neural network.
+\end{definition}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.78\linewidth]{../Presentation/images/2026-07-01-11-07-18.png}
+  \caption{Quantile Huber losses for several quantile levels. The quadratic
+  region near zero smooths the kink of the linear quantile loss while retaining
+  its asymmetric weighting.}
+  \label{fig:quantile-huber-loss}
+\end{figure}
 
 For control, the next action is usually selected greedily with respect to the
 mean of the predicted distribution:
@@ -780,6 +805,7 @@ $$
   \theta_i(x,a;\omega),
   \qquad i=1,\ldots,N.
 $$
+\begin{definition}{QR-DQN training objective}{}
 QR-DQN minimizes the pairwise quantile Huber loss
 $$
   L_{\mathrm{QR}}(\omega)
@@ -804,6 +830,7 @@ $$
 The target atoms are treated as constants when differentiating with respect to
 $\omega$; this is the usual semi-gradient idea inherited from TD learning and
 DQN.
+\end{definition}
 
 The quantile Huber loss is important because the raw quantile loss
 $\rho_\tau(u)$ is non-smooth at zero. QR-DQN uses
@@ -902,6 +929,7 @@ with unrestricted particles is not as directly smooth as the losses below.
 
 \subsection{MMD-DQN}
 
+\begin{definition}{Kernel mean embedding and maximum mean discrepancy}{}
 Let $k:\R\times\R\to\R$ be a continuous positive-definite kernel and let
 $\Hcal_k$ be its reproducing kernel Hilbert space. For a probability measure
 $\mu$, define the kernel mean embedding
@@ -927,6 +955,19 @@ $$
 If the kernel is characteristic, the embedding is injective, and
 $\MMD_k(\mu,\nu)=0$ implies $\mu=\nu$. Thus the MMD is then a genuine metric on
 probability measures.
+\end{definition}
+
+\begin{theorem}{When MMD is a metric \cite[Theorem 1]{nguyen2020moment}}{}
+A characteristic kernel, such as the Gaussian kernel, induces an MMD metric on
+$\p(\R)$. The unrectified distance kernel
+$$
+  k_\alpha(x,y)=-\lvert x-y\rvert^\alpha
+$$
+induces an MMD metric on distributions with finite $\alpha$-moment for
+$0<\alpha<2$, but not for $\alpha=2$. The exponential-product kernel
+$k(x,y)=\exp(xy/\sigma^2)$ is likewise a metric on the paper's
+moment-determinate domain $\p_*(\R)$.
+\end{theorem}
 
 Nguyen et al. define the state-action supremum metric
 \cite{nguyen2020moment}
@@ -948,16 +989,41 @@ $$
   =
   \gamma^{\alpha/2}\MMD_k(\mu,\nu).
 $$
-For mixtures of such kernels, the distributional Bellman operator satisfies
+\begin{theorem}{MMD Bellman contraction and its limitation
+\cite[Theorem 2]{nguyen2020moment}}{}
+For $k=\sum_{i\in I}c_i k_i$, where $c_i\geq0$ and every $k_i$ is
+translation invariant and homogeneous of order $\alpha_i>0$, set
+$\alpha_*:=\inf_{i\in I}\alpha_i$. The distributional Bellman operator satisfies
 $$
   \MMD_{\infty,k}(\T^\pi\eta,\T^\pi\nu)
   \leq
-  \gamma^{\alpha/2}
+  \gamma^{\alpha_*/2}
   \MMD_{\infty,k}(\eta,\nu).
 $$
 Hence the metric-first story mirrors the Wasserstein contraction story: if the
 chosen metric contracts under the affine Bellman shift and mixing does not
 expand it, fixed-point arguments become available.
+The operator is not, however, a contraction for Gaussian or
+exponential-product kernels in general. Thus characteristicness alone is not
+enough for Bellman contraction.
+\end{theorem}
+
+\begin{theorem}{Deterministic-particle approximation rate
+\cite[Theorem 3]{nguyen2020moment}}{}
+Let $P\in\p(\R^d)$ and choose $n$ deterministic particles to minimize MMD,
+$$
+  P_n=\frac1n\sum_{i=1}^n\delta_{x_i},
+  \qquad
+  (x_i)_{i=1}^n\in\arg\min_{(\widetilde x_i)_{i=1}^n}
+  \MMD_k\left(\frac1n\sum_{i=1}^n\delta_{\widetilde x_i},P\right).
+$$
+For every $h$ in the unit ball of the corresponding RKHS,
+$$
+  \left|\int h\,\mathrm dP_n-\int h\,\mathrm dP\right|=O(n^{-1/2}).
+$$
+This rate is independent of the ambient dimension; the paper contrasts it with
+the usual $O(n^{-1/d})$ empirical $1$-Wasserstein rate when $d>2$.
+\end{theorem}
 
 The important caveat is exactly the one emphasized in the presentation. The
 kernel used for the clean theorem is not necessarily the kernel that performs
@@ -1004,6 +1070,7 @@ $\omega$; the target particles are fixed by the target network.
 
 \subsection{SinkhornDRL}
 
+\begin{definition}{Regularized optimal transport and Sinkhorn divergence}{}
 SinkhornDRL starts from optimal transport and replaces the hard transport
 problem by an entropically regularized one \cite{sun2022regularized}. For a
 cost $c:\R\times\R\to\R_+$, define
@@ -1036,6 +1103,35 @@ $$
   -
   \frac12\OT_c^\varepsilon(\nu,\nu).
 $$
+The self-cost correction removes the regularized objective's self-similarity
+bias while retaining a smooth, computationally tractable loss.
+\end{definition}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.94\linewidth]{../Presentation/images/2026-07-01-13-37-43.png}
+  \caption{Entropic regularization controls the diffuseness of the transport
+  plan: decreasing $\varepsilon$ concentrates mass on a sparser matching.}
+  \label{fig:sinkhorn-regularization}
+\end{figure}
+
+\begin{proposition}{Non-expansion of the information term
+\cite[Proposition 1]{sun2022regularized}}{}
+For a nontrivial coupling $\Pi$, define
+$$
+  \operatorname{MI}^{\infty}_{\Pi}(\eta,\nu)
+  =\sup_{x,a}\KL\!\left(
+    \Pi_{x,a}\,\middle|\,\eta(x,a)\otimes\nu(x,a)
+  \right).
+$$
+Then the distributional Bellman operator is nonexpansive:
+$$
+  \operatorname{MI}^{\infty}_{\Pi}(\T^\pi\eta,\T^\pi\nu)
+  \leq \operatorname{MI}^{\infty}_{\Pi}(\eta,\nu).
+$$
+The regularization component therefore does not expand under a Bellman update,
+but it does not supply the strict discount contraction of the transport cost.
+\end{proposition}
 
 For $c(x,y)=\norm{x-y}^{\alpha}$, define the supremum divergence
 $$
@@ -1044,6 +1140,8 @@ $$
   \sup_{x,a}
   \overline W_{c,\varepsilon}(\eta(x,a),\nu(x,a)).
 $$
+\begin{theorem}{Sinkhorn Bellman contraction
+\cite[Theorem 1]{sun2022regularized}}{}
 Sun et al. show that the Bellman operator is contractive with a factor bounded
 by
 $$
@@ -1079,6 +1177,7 @@ regularization-dominated rate:
 $$
   \overline\Delta_\varepsilon(\gamma,\alpha)\in(\gamma^\alpha,1).
 $$
+\end{theorem}
 
 The particle learning rule has the same Bellman target construction as
 MMD-DQN. With current empirical measure
@@ -1105,7 +1204,9 @@ $$
 The Sinkhorn algorithm gives a differentiable approximation to this quantity
 for empirical measures, which makes it usable as a neural-network loss.
 
-Finally, the regularization parameter interpolates between two geometries:
+\begin{theorem}{Wasserstein--MMD interpolation
+\cite[Theorem 1]{sun2022regularized}}{}
+The regularization parameter interpolates between two geometries:
 $$
   \varepsilon\to0
   \quad\Rightarrow\quad
@@ -1121,10 +1222,23 @@ $$
   \qquad
   k_\alpha=-c.
 $$
+Thus the small-regularization endpoint recovers transport geometry, while the
+large-regularization endpoint recovers the MMD induced by the negative cost
+kernel.
+\end{theorem}
 This is why the presentation treats SinkhornDRL as a bridge between
 Wasserstein-style distributional RL and MMD-DQN: it keeps a transport-based
 objective while making the empirical particle loss smooth enough for deep
 learning.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{../Presentation/images/2026-07-01-14-35-50.png}
+  \caption{Atari aggregate performance reported in the presentation. The three
+  panels show the mean, median, and interquartile mean of human-normalized
+  scores over training.}
+  \label{fig:atari-comparison}
+\end{figure}
 
 \printbibliography
 
