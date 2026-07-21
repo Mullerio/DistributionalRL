@@ -951,9 +951,7 @@ Suprisingly and disagreeing with the theory, we have better empirical performanc
 As already stated, the Wasserstein distance is not a differentaible metric. This paper \cite{sun2022regularized} uses a regularized version which makes it work. 
 
 \begin{definition}{Regularized optimal transport and Sinkhorn divergence}{}
-SinkhornDRL starts from optimal transport and replaces the hard transport
-problem by an entropically regularized one \cite{sun2022regularized}. For a
-cost $c:\R\times\R\to\R_+$, define
+For a cost function $c:\R\times\R\to\R_+$, the standard OT problem is the following minimization
 $$
   \OT_c(\mu,\nu)
   =
@@ -972,8 +970,8 @@ $$
     \varepsilon\KL(\pi\mid \mu\otimes\nu)
   \right\}.
 $$
-Because this regularized objective has a self-similarity bias, SinkhornDRL uses
-the debiased Sinkhorn divergence
+However, this version is not a metric anymore since for two measures that are the same, the regularized Wasserstein might be non zero. 
+This is why the paper uses what they call the debiased Sinkhorn divergence
 $$
   \overline W_{c,\varepsilon}(\mu,\nu)
   =
@@ -983,35 +981,23 @@ $$
   -
   \frac12\OT_c^\varepsilon(\nu,\nu).
 $$
-The self-cost correction removes the regularized objective's self-similarity
-bias while retaining a smooth, computationally tractable loss.
+While this solves the issue of it being non zero when both entries are the same, this still does not satisfy the triangle inequality. 
 \end{definition}
+
+Based on this $\bar{W}_{c,\varepsilon}$, the paper defines the supremum metric as before
+$$
+  \overline W^\infty_{c,\varepsilon}(\eta,\nu)
+  =
+  \sup_{x,a}
+  \overline W_{c,\varepsilon}(\eta(x,a),\nu(x,a)).
+$$
 
 \begin{figure}[ht]
   \centering
   \includegraphics[width=0.94\linewidth]{../Presentation/images/2026-07-01-13-37-43.png}
-  \caption{Entropic regularization controls the diffuseness of the transport
-  plan: decreasing $\varepsilon$ concentrates mass on a sparser matching.}
+  \caption{Regularization controls how much 'spread out' the mass is, since we bias the optimization towards the product measure which is 'the most spread out'.}
   \label{fig:sinkhorn-regularization}
 \end{figure}
-
-\begin{proposition}{Non-expansion of the information term
-\cite[Proposition 1]{sun2022regularized}}{}
-For a nontrivial coupling $\Pi$, define
-$$
-  \operatorname{MI}^{\infty}_{\Pi}(\eta,\nu)
-  =\sup_{x,a}\KL\!\left(
-    \Pi_{x,a}\,\middle|\,\eta(x,a)\otimes\nu(x,a)
-  \right).
-$$
-Then the distributional Bellman operator is nonexpansive:
-$$
-  \operatorname{MI}^{\infty}_{\Pi}(\T^\pi\eta,\T^\pi\nu)
-  \leq \operatorname{MI}^{\infty}_{\Pi}(\eta,\nu).
-$$
-The regularization component therefore does not expand under a Bellman update,
-but it does not supply the strict discount contraction of the transport cost.
-\end{proposition}
 
 For $c(x,y)=\norm{x-y}^{\alpha}$, define the supremum divergence
 $$
@@ -1020,7 +1006,7 @@ $$
   \sup_{x,a}
   \overline W_{c,\varepsilon}(\eta(x,a),\nu(x,a)).
 $$
-\begin{theorem}{Regularized Wasserstein Bellman contraction, \cite{sun2022regularized}}{}
+\begin{theorem}{Reg. Wasserstein Bellman contraction, \cite[Theorem 4.1]{sun2022regularized}}{}
 Define
 $$
   \overline\Delta_\varepsilon(\gamma,\alpha)
@@ -1043,15 +1029,15 @@ $$
   }
   \in(0,1)
 $$
-and $\pi^*$ is an optimal regularized coupling. Thus
+and $\pi^*$ is the optimal regularized coupling. This implies
 $$
   \overline W^\infty_{c,\varepsilon}(\T^\pi\eta,\T^\pi\nu)
   \leq
   \overline\Delta_\varepsilon(\gamma,\alpha)
   \overline W^\infty_{c,\varepsilon}(\eta,\nu).
 $$
-The rate lies between the unregularized Wasserstein-type rate and the
-regularization-dominated rate:
+The rate lies between the unregularized Wasserstein rate also discussed in the book and the
+regularization dominated rate:
 $$
   \overline\Delta_\varepsilon(\gamma,\alpha)\in(\gamma^\alpha,1).
 $$
