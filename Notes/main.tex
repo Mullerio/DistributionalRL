@@ -109,6 +109,14 @@
       left=5pt, right=5pt, top=5pt, bottom=5pt
   }{def}
 
+\newtcbtheorem[auto counter]{example}{Example}{
+  theorem name and number,%
+      colframe=gray,%
+      fonttitle=\bfseries,
+      boxsep=5pt,
+      left=5pt, right=5pt, top=5pt, bottom=5pt
+  }{ex}
+
 \title{Distributional Reinforcement Learning with Function Approximation}
 \author{ }
 \date{}
@@ -681,45 +689,17 @@ $$
   \qquad j=1,\ldots,N.
 $$
 
-\section{Gateway to Deep Representations}
+\section{Deep Distributional Reinforcement Learning}
 
-The linear approximation above separates representation and prediction:
+Now, instead of a linear feature representation, we use a neural network
 $$
-  \text{fixed features } \phi(x,a)
-  \qquad\text{and}\qquad
-  \text{linear heads } w_i.
+  \psi_\omega(x)\in\R^d,
 $$
-This is the useful gateway into deep distributional reinforcement learning. The
-deep version keeps the same conceptual decomposition, but replaces the fixed
-feature map by a learned representation. A neural network maps the observation
-or state to a feature vector
-$$
-  \psi_\xi(x)\in\R^d,
-$$
-and the final layers produce a distributional prediction. In the quantile case
-one may write
-$$
-  \theta_i(x,a;\omega)
-  =
-  f_i(\psi_\xi(x),a),
-  \qquad i=1,\ldots,N.
-$$
-The return-distribution approximation becomes
-$$
-  \eta_\omega(x,a)
-  =
-  \frac{1}{N}\sum_{i=1}^N
-  \delta_{\theta_i(x,a;\omega)}.
-$$
+where $\omega$ are the parameters and the final layers produce a distributional prediction in some sense, i.e. either quantiles or probabilities for the categorical case. \\
 
-The parameter $\omega$ includes both the representation parameters $\xi$ and the
-prediction heads. Linear Quantile TD is recovered as the special case in which
-$\psi_\xi$ is fixed and $f_i$ is linear. Deep quantile methods instead optimize
-all of $\omega$ by backpropagating through the distributional TD loss.
+\subsection{QR-DQN}
 
-\section{QR-DQN}
-
-QR-DQN is the deep control version of Quantile TD. It
+QR-DQN is the deep version of Quantile TD. It
 uses a neural network to output $N$ quantile locations for each action:
 $$
   \theta_i(x,a;\omega),
@@ -732,24 +712,13 @@ $$
   \frac{1}{N}\sum_{i=1}^N
   \delta_{\theta_i(x,a;\omega)}.
 $$
-The predicted scalar action-value is the mean of this empirical distribution:
-$$
-  Q_\omega(x,a)
-  =
-  \frac{1}{N}\sum_{i=1}^N \theta_i(x,a;\omega).
-$$
-Thus QR-DQN can still choose greedy actions in the usual value-based way, but
-the value used for action selection is obtained by averaging the learned
-quantiles.
 
-As in DQN, QR-DQN uses two sets of parameters. The online network has parameters
-$\omega$ and is updated by gradient descent. The target network has parameters
-$\bar{\omega}$ and is held fixed for several updates before being copied from
-$\omega$. For a transition
-$$
-  (x,a,r,x^{\prime},d),
-$$
-where $d\in\{0,1\}$ indicates termination, the greedy next action is selected by
+As in DQN, QR-DQN uses two sets of parameters. This is needed because the target network is the same as our current one, hence we fix the target parameters for a couple of iterations always. 
+For a transition
+$
+  (x,a,r,x^{\prime}),
+$
+the greedy next action is selected by
 the mean of the target-network distribution:
 $$
   a^*(x^{\prime})
@@ -790,18 +759,14 @@ $$
   \left|\tau-\1_{\{u<0\}}\right|
   \frac{\mathcal{L}_\kappa(u)}{\kappa}.
 $$
-For small residuals the loss is quadratic and gives smoother gradients; for
-large residuals it grows linearly, preventing large TD errors from dominating.
-The factor $|\tau-\1_{\{u<0\}}|$ retains the asymmetry required for quantile
-regression.
+For small residuals the loss is quadratic and gives smoother gradients, in particular it is differentiable at 0. 
+For large residuals it behaves linearly, preventing exploding gradients.
 \end{definition}
 
 \begin{figure}[ht]
   \centering
   \includegraphics[width=0.78\linewidth]{../Presentation/images/2026-07-01-11-07-18.png}
-  \caption{Quantile Huber losses for several quantile levels. The quadratic
-  region near zero smooths the kink of the linear quantile loss while retaining
-  its asymmetric weighting.}
+  \caption{Quantile Huber losses for several quantile levels.}
   \label{fig:quantile-huber-loss}
 \end{figure}
 
@@ -819,91 +784,36 @@ with quantile levels
 $$
   \tau_i=\frac{2i-1}{2N}.
 $$
-In a minibatch $\mathcal{B}$ sampled from replay memory, the objective is
-$$
-  \mathcal{L}_{\mathrm{QR}}(\omega)
-  =
-  \frac{1}{|\mathcal{B}|}
-  \sum_{(x,a,r,x^{\prime},d)\in\mathcal{B}}
-  L_{\mathrm{QR}}(\omega;x,a,r,x^{\prime},d).
-$$
-The target atoms are treated as constants when differentiating with respect to
-$\omega$; this is the usual semi-gradient idea inherited from TD learning and
-DQN.
+If we have acess to a minibatch $\mathcal{B}$ sampled from replay memory, the objective is just the sum over the above single transition loss. 
 \end{definition}
 
-\subsection*{How QR-DQN Relates to DQN}
+For the categorical case, the most notable deep variant is C51 which essentially uses the same ideas that the linear approximation in both the scalaer and distributional versions use, hence we will not discuss it here. For more details, see \cite[Chapter 10.2]{bellemare2023distributional}.
 
-DQN learns one scalar per action:
-$$
-  x \mapsto \{Q_\omega(x,a):a\in\A\}.
-$$
-QR-DQN learns a collection of quantiles per action:
-$$
-  x \mapsto
-  \{\theta_i(x,a;\omega):i=1,\ldots,N,\ a\in\A\}.
-$$
-The scalar Bellman target
-$$
-  r+\gamma\max_{a^{\prime}}Q_{\bar{\omega}}(x^{\prime},a^{\prime})
-$$
-is replaced by the empirical target distribution
-$$
-  \frac{1}{N}\sum_{j=1}^N
-  \delta_{r+\gamma(1-d)\theta_j(x^{\prime},a^*(x^{\prime});\bar{\omega})}.
-$$
-The squared TD loss is replaced by the pairwise quantile Huber loss. Action
-selection remains risk-neutral unless we deliberately change it: QR-DQN chooses
-actions by the mean of the predicted quantiles. The learned object, however, is
-much richer than the mean.
-
-\subsection*{Representation Learning Signal}
-
-The representation $\psi_\xi(x)$ in QR-DQN is trained by many losses at once.
-For a single transition, the network sees all residuals
-$$
-  y_j-\theta_i(x,a;\omega),
-  \qquad i,j=1,\ldots,N.
-$$
-Lower quantile heads receive large gradients when the lower tail is poorly
-placed; upper quantile heads receive large gradients when the upper tail is
-poorly placed. Thus the shared representation is shaped not only by expected
-return, but by the whole geometry of the target return distribution.
-
-This gives a useful interpretation of the empirical strength of distributional
-methods. A scalar DQN representation only needs to make the conditional mean
-easy to predict. A QR-DQN representation must make many parts of the return
-distribution easy to predict simultaneously. The extra prediction problem can
-act as a richer training signal, even when the final policy is still selected by
-the mean.
-
+\newpage 
 \section{Particle Distributional DQN}
+Now we will discuss some recent work on Distributional DQN that does not utilize a fixed parametrization of the return distribution. Instead, a particle representation is used where we just take the empirical measure of multiple samples.
 
-QR-DQN uses particles with a special interpretation: the particle
-$\theta_i(x,a)$ is tied to the fixed quantile level
-$\tau_i=(2i-1)/(2N)$. MMD-DQN and SinkhornDRL keep the empirical-measure
-form
 $$
   \eta_\omega(x,a)
   =
   \frac1N\sum_{i=1}^N\delta_{z_i(x,a;\omega)}
 $$
-but treat the $z_i$ as deterministic samples of the return distribution, not
-as named quantiles. The common template is:
+For such methods, the common template is:
 \begin{enumerate}
   \item choose a divergence or metric $d$ between probability measures,
   \item study whether the distributional Bellman operator contracts under the
-  induced supremum metric
+  induced supremum metric which takes the maximum difference over the states and actions
   $$
     \bar d(\eta,\nu)=\sup_{x,a}d(\eta(x,a),\nu(x,a)),
   $$
   \item use the empirical version of $d$ as a differentiable DQN loss.
 \end{enumerate}
-The last point matters algorithmically. The ordinary Wasserstein distance is
-mathematically natural for distributional RL, but its empirical optimization
-with unrestricted particles is not as directly smooth as the losses below.
+The last point is important, since the standard Wasserstein distance is not differentiable and hence not that well suited for this problem. 
 
 \subsection{MMD-DQN}
+
+This section follows \cite{nguyen2020moment}. The maximum mean discrepancy (MMD) is a metric on probability measures that is induced by a reproducing kernel Hilbert space. 
+Depending on the choice of the kernel, many different metrics can be constructed. However not all kernels induce a metric. 
 
 \begin{definition}{Kernel mean embedding and maximum mean discrepancy}{}
 Let $k:\R\times\R\to\R$ be a continuous positive-definite kernel and let
@@ -929,50 +839,47 @@ $$
   \E k(Z,Z^{\prime})+\E k(Y,Y^{\prime})-2\E k(Z,Y).
 $$
 If the kernel is characteristic, the embedding is injective, and
-$\MMD_k(\mu,\nu)=0$ implies $\mu=\nu$. Thus the MMD is then a genuine metric on
-probability measures.
+$\MMD_k(\mu,\nu)=0$ implies $\mu=\nu$. With this, the MMD is really a metric. 
 \end{definition}
 
-\begin{theorem}{When MMD is a metric \cite[Theorem 1]{nguyen2020moment}}{}
-A characteristic kernel, such as the Gaussian kernel, induces an MMD metric on
-$\p(\R)$. The unrectified distance kernel
-$$
-  k_\alpha(x,y)=-\lvert x-y\rvert^\alpha
-$$
-induces an MMD metric on distributions with finite $\alpha$-moment for
-$0<\alpha<2$, but not for $\alpha=2$. The exponential-product kernel
-$k(x,y)=\exp(xy/\sigma^2)$ is likewise a metric on the paper's
-moment-determinate domain $\p_*(\R)$.
-\end{theorem}
+\begin{example}{Characteristic kernels}{}
+Standard characteristic kernels on $\R^d$ include
+\begin{align*}
+  \text{Gaussian:}\quad
+  &k(x,y)=\exp\!\left(-\frac{\norm{x-y}^2}{2\sigma^2}\right),\\
+  \text{Laplace:}\quad
+  &k(x,y)=\exp\!\left(-\frac{\norm{x-y}}{\sigma}\right),\\
+  \text{inverse quadratic:}\quad
+  &k(x,y)=\left(c^2+\norm{x-y}^2\right)^{-\beta},\\
+  \text{unrectified distance:}\quad
+  &k_\alpha(x,y)=-\norm{x-y}^{\alpha},\qquad 0<\alpha<2,
+\end{align*}
+where $\sigma,c,\beta>0$. By contrast, the linear kernel
+$k(x,y)=x^\top y$ is not characteristic.
+\end{example}
 
-Nguyen et al. define the state-action supremum metric
+Nguyen et al. define the state-action supremum metric as hinted at in the introduction 
 \cite{nguyen2020moment}
 $$
   \MMD_{\infty,k}(\eta,\nu)
   =
   \sup_{x,a}\MMD_k(\eta(x,a),\nu(x,a)).
 $$
-The contraction theorem does not hold for arbitrary characteristic kernels.
-The clean theorem in \cite{nguyen2020moment} assumes kernels that are
-translation invariant and homogeneous under discount scaling in the following
-sense:
+Sadly, the Bellman operator is not a contraction for arbitrary characteristic kernels, but we need some properties for them.
 
-\begin{theorem}{MMD Bellman contraction, \cite{nguyen2020moment}}{}
-Assume that the kernel is translation invariant,
+\begin{theorem}{MMD Bellman contraction, \cite[Theorem 2]{nguyen2020moment}}{}
+Assume that $k=\sum_{i\in I}c_i k_i$ where $c_i\geq0$ and every $k_i$ has the following two properties. Firstly, it is translation invariant,
 $$
   k(x+c,y+c)=k(x,y)
 $$
-and, for $b_{\gamma,0}(z)=\gamma z$,
+and somewhat scale invariant, i.e. for $b_{\gamma,0}(z)=\gamma z$,
 $$
   \MMD_k\bigl((b_{\gamma,0})_\#\mu,
   (b_{\gamma,0})_\#\nu\bigr)
   =
-  \gamma^{\alpha/2}\MMD_k(\mu,\nu).
+  \gamma^{\alpha_i/2}\MMD_k(\mu,\nu).
 $$
-\begin{theorem}{MMD Bellman contraction and its limitation
-\cite[Theorem 2]{nguyen2020moment}}{}
-For $k=\sum_{i\in I}c_i k_i$, where $c_i\geq0$ and every $k_i$ is
-translation invariant and homogeneous of order $\alpha_i>0$, set
+then, if we set
 $\alpha_*:=\inf_{i\in I}\alpha_i$. The distributional Bellman operator satisfies
 $$
   \MMD_{\infty,k}(\T^\pi\eta,\T^\pi\nu)
@@ -982,17 +889,14 @@ $$
 $$
 \end{theorem}
 
-Hence the metric-first story mirrors the Wasserstein contraction story: if the
-chosen metric contracts under the affine Bellman shift and mixing does not
-expand it, fixed-point arguments become available.
-The operator is not, however, a contraction for Gaussian or
-exponential-product kernels in general. Thus characteristicness alone is not
-enough for Bellman contraction.
-\end{theorem}
+In particular, the unrectified distance kernel $k_\alpha$ satisfies the assumptions. On the other hand, the Gaussian kernel does not satisfy the scale invariance since if we look at the scaled gaussian kernel we have 
+$$
+k_\sigma(\gamma x,\gamma y)=\exp\left(-\frac{\norm{\gamma x-\gamma y}^2}{2\sigma^2}\right)=\exp\left(-\frac{\gamma^2\norm{x-y}^2}{2\sigma^2}\right)\neq \gamma^{\alpha/2}k_\sigma(x,y)
+$$
 
-\begin{theorem}{Deterministic-particle approximation rate
+\begin{theorem}{Particle approximation rate
 \cite[Theorem 3]{nguyen2020moment}}{}
-Let $P\in\p(\R^d)$ and choose $n$ deterministic particles to minimize MMD,
+Let $P\in\p(\R^d)$ and choose $n$ particles that minimize the MMD to $P$:
 $$
   P_n=\frac1n\sum_{i=1}^n\delta_{x_i},
   \qquad
@@ -1007,17 +911,8 @@ This rate is independent of the ambient dimension; the paper contrasts it with
 the usual $O(n^{-1/d})$ empirical $1$-Wasserstein rate when $d>2$.
 \end{theorem}
 
-The important caveat is exactly the one emphasized in the presentation. The
-kernel used for the clean theorem is not necessarily the kernel that performs
-best empirically. Kernels such as
-$$
-  k_\alpha(x,y)=-\norm{x-y}^{\alpha}
-$$
-fit the contraction theory, whereas Gaussian kernels generally do not yield a
-Bellman contraction in MMD. Nevertheless, Gaussian kernels can perform better
-in experiments, so the theorem should be read as a stability result for a class
-of metrics, not as a full explanation of the best empirical kernel choice.
 
+With the contraction result in hand we can now straight forwardly define the particle DQN method. 
 For a transition $(x,a,r,x^{\prime})$ and target-network parameters
 $\bar\omega$, the
 particle DQN target is constructed by first choosing the greedy next action
@@ -1035,7 +930,7 @@ $$
   r+\gamma z_j(x^{\prime},a^*(x^{\prime});\bar\omega),
   \qquad j=1,\ldots,N.
 $$
-With current particles $z_i=z_i(x,a;\omega)$, the empirical MMD loss is
+With current particles $z_i=z_i(x,a;\omega)$, the empirical MMD loss is evaluated as
 $$
   L_{\MMD}(\omega)
   =
@@ -1047,10 +942,13 @@ $$
   -
   \frac2{N^2}\sum_{i,j=1}^Nk(z_i,y_j).
 $$
-Only the terms involving current particles are differentiated with respect to
-$\omega$; the target particles are fixed by the target network.
 
+and this can be differentiated through autograd with respect to the parameters of our networks that produced the samples. \\
+
+Suprisingly and disagreeing with the theory, we have better empirical performance when we choose the gaussian kernel which means that a distance performs well under which the Bellman Operator is not a contraction. 
 \subsection{SinkhornDRL}
+
+As already stated, the Wasserstein distance is not a differentaible metric. This paper \cite{sun2022regularized} uses a regularized version which makes it work. 
 
 \begin{definition}{Regularized optimal transport and Sinkhorn divergence}{}
 SinkhornDRL starts from optimal transport and replaces the hard transport
