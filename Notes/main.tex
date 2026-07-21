@@ -975,12 +975,13 @@ This is why the paper uses what they call the debiased Sinkhorn divergence
 $$
   \overline W_{c,\varepsilon}(\mu,\nu)
   =
-  \OT_c^\varepsilon(\mu,\nu)
-  -
-  \frac12\OT_c^\varepsilon(\mu,\mu)
-  -
-  \frac12\OT_c^\varepsilon(\nu,\nu).
+  2\OT_c^\varepsilon(\mu,\nu)
+  -\OT_c^\varepsilon(\mu,\mu)
+  -\OT_c^\varepsilon(\nu,\nu).
 $$
+This is the doubled normalization used in the paper. The also common convention
+$\OT_c^\varepsilon(\mu,\nu)-\tfrac12\OT_c^\varepsilon(\mu,\mu)
+-\tfrac12\OT_c^\varepsilon(\nu,\nu)$ differs only by a factor of two.
 While this solves the issue of it being non zero when both entries are the same, this still does not satisfy the triangle inequality. 
 \end{definition}
 
@@ -1068,6 +1069,45 @@ $$
 The Sinkhorn algorithm gives a differentiable approximation to this quantity
 for empirical measures, which makes it usable as a neural-network loss.
 
+\begin{table}[ht]
+  \centering
+  \renewcommand{\arraystretch}{1.35}
+  \setlength{\tabcolsep}{8pt}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{lccc}
+    \hline
+    \textbf{Algorithm}
+      & \textbf{Distribution divergence $d_p$}
+      & \textbf{Representation $Z_\theta$}
+      & \textbf{Convergence rate of $\T^\pi$} \\
+    \hline
+    C51
+      & Cram\'{e}r distance
+      & Categorical distribution
+      & $\sqrt{\gamma}$ \\
+    QR-DQN
+      & Wasserstein distance
+      & Quantiles
+      & $\gamma$ \\
+    MMD-DQN
+      & MMD
+      & Samples
+      & $\gamma^{\alpha/2}$ for $k_\alpha$ \\
+    \hline
+    SinkhornDRL (ours)
+      & Sinkhorn divergence
+      & Samples
+      & $\gamma^\alpha$ as $\varepsilon\to0$;
+        $\gamma^{\alpha/2}$ for $k_\alpha$ as $\varepsilon\to\infty$ \\
+    \hline
+  \end{tabular}%
+  }
+  \caption{Distributional RL algorithms, their distribution representations,
+  and Bellman convergence rates. The sample-complexity column from the paper
+  is omitted.}
+  \label{tab:drl-divergence-comparison}
+\end{table}
+
 \begin{theorem}{Wasserstein--MMD interpolation
 \cite[Theorem 1]{sun2022regularized}}{}
 The regularization parameter interpolates between two geometries:
@@ -1090,6 +1130,60 @@ Thus the small-regularization endpoint recovers transport geometry, while the
 large-regularization endpoint recovers the MMD induced by the negative cost
 kernel.
 \end{theorem}
+
+\begin{proof}
+We prove the large-regularization limit. Let
+$\pi_\varepsilon^{\mu,\nu}$ minimize
+$\OT_c^\varepsilon(\mu,\nu)$. Comparing it with the feasible product coupling
+$\mu\otimes\nu$ gives
+$$
+  \int c\,\mathrm d\pi_\varepsilon^{\mu,\nu}
+  +\varepsilon\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)
+  \leq \int c\,\mathrm d(\mu\otimes\nu).
+$$
+Assume $c$ is bounded on the support of the return distributions and write
+$K=\norm{c}_\infty$. Optimality and Pinsker's inequality give
+$$
+\begin{aligned}
+  \varepsilon\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)
+  &\leq
+  \int c\,\mathrm d(\mu\otimes\nu)
+  -\int c\,\mathrm d\pi_\varepsilon^{\mu,\nu}\\
+  &\leq 2K\norm{\pi_\varepsilon^{\mu,\nu}-\mu\otimes\nu}_{\mathrm{TV}}
+  \leq K\sqrt{2\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)}.
+\end{aligned}
+$$
+Consequently, the KL term is $O(\varepsilon^{-2})$, so
+$\varepsilon\KL\to0$, and Pinsker also implies
+$\pi_\varepsilon^{\mu,\nu}\to\mu\otimes\nu$ in total variation. Therefore
+$$
+  \OT_c^\varepsilon(\mu,\nu)
+  \longrightarrow
+  \iint c(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy).
+$$
+The same argument applied to the two self-couplings gives
+$$
+\begin{aligned}
+  \overline W_{c,\varepsilon}(\mu,\nu)
+  \longrightarrow{}&
+  2\iint c(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy)\\
+  &-\iint c(x,x^{\prime})\,\mu(\mathrm dx)\mu(\mathrm dx^{\prime})
+  -\iint c(y,y^{\prime})\,\nu(\mathrm dy)\nu(\mathrm dy^{\prime}).
+\end{aligned}
+$$
+For $k_\alpha=-c$, this is exactly
+$$
+\begin{aligned}
+  &\iint k_\alpha(x,x^{\prime})\,\mu(\mathrm dx)\mu(\mathrm dx^{\prime})
+  +\iint k_\alpha(y,y^{\prime})\,\nu(\mathrm dy)\nu(\mathrm dy^{\prime})\\
+  &\qquad-2\iint k_\alpha(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy)
+  =\MMD_{k_\alpha}^2(\mu,\nu).
+\end{aligned}
+$$
+Thus $\overline W_{c,\varepsilon}(\mu,\nu)$ converges to squared MMD as
+$\varepsilon\to\infty$.
+\end{proof}
+
 This is why the presentation treats SinkhornDRL as a bridge between
 Wasserstein-style distributional RL and MMD-DQN: it keeps a transport-based
 objective while making the empirical particle loss smooth enough for deep
