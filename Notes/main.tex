@@ -607,6 +607,163 @@ $$
 In particular, we fix the probabilities to be equal, but allow the atom positions to change.
 \end{definition}
 
+\subsection{Signed categorical approximation}
+
+For the theoretical analysis of linear categorical approximation, we now want to allow signed measures. 
+This will allow us to analyze the space of measures as a linear space equipped with a distance and as such also will allows us to define a linear projection operator.
+In turn this will in the end allow us to see if in the linear categorical setting, we are working with a contraction (if we work in the categorical representation defined below).
+
+\begin{definition}{Signed categorical family}{}
+For the fixed support $S=\{\theta_1,\ldots,\theta_m\}$, define
+$$
+  \mathcal F_{S,m}
+  =
+  \left\{
+    \sum_{i=1}^m p_i\delta_{\theta_i}
+    \ \middle|\
+    p_i\in\R,\ \sum_{i=1}^m p_i=1
+  \right\}.
+$$
+The coefficients still have total mass one but may be negative. The associated
+return-distribution functions form the space of maps from the state space to these signed measures:
+$$
+  \mathcal F_{S,m}^{\X}
+  =
+  \{\eta:\X\to\mathcal F_{S,m}\}.
+$$
+\end{definition}
+
+Now, we will not use the softmax anymore, but instead we will just directly use $\phi(x)^\top w_i$ as the probabilites, although centering them to ensure that they sum to one. 
+$$
+  p_i(x)
+  =
+  \frac1m+\phi(x)^\top w_i
+  -\frac1m\sum_{j=1}^m\phi(x)^\top w_j .
+$$
+Then $\sum_i p_i(x)=1$ for every $x$, while individual $p_i(x)$ may be
+negative. We denote the resulting finite dimensional measure space by
+$$
+  \mathcal F_{\phi,S,m}
+  =
+  \left\{
+    x\mapsto\sum_{i=1}^m p_i(x)\delta_{\theta_i}
+    \ \middle|\
+    w_1,\ldots,w_m\in\R^d
+  \right\}.
+$$
+
+Now, we need a distance on this space, which the Cramer distance defined earlier in the book provides.
+
+\begin{definition}{Cram\'er geometry for signed measures}{}
+For signed measures $\nu,\nu^{\prime}$ of total mass one, define
+$$
+  \ell_2^2(\nu,\nu^{\prime})
+  =
+  \int_\R\left(F_\nu(z)-F_{\nu^{\prime}}(z)\right)^2\,\mathrm dz,
+  \qquad
+  F_\nu(z)=\nu((-\infty,z]).
+$$
+Let
+$$
+  \mathcal M_{\ell_2,1}(\R)
+  =
+  \left\{
+    \nu:\nu(\R)=1,\ \ell_2(\nu,\delta_0)<\infty
+  \right\}.
+$$
+For return-distribution functions, the stationary-state-weighted distance is
+$$
+  \ell_{\xi,2}^2(\eta,\eta^{\prime})
+  =
+  \sum_{x\in\X}\xi(x)
+  \ell_2^2\!\left(\eta(x),\eta^{\prime}(x)\right).
+$$
+\end{definition}
+
+There are two distinct approximation errors after a Bellman update. First,
+$(\T^\pi\eta)(x)$ need not be supported on $S$, so the categorical projection
+$\Pi_c$ moves its mass back to the fixed support. Second, even
+$\Pi_c\T^\pi\eta$ need not have probabilities that are linear in the features,
+so a feature projection is required:
+$$
+  \Pi_{\phi,\xi,\ell_2}\widetilde\eta
+  \in
+  \arg\min_{\eta^{\prime}\in\mathcal F_{\phi,S,m}}
+  \ell_{\xi,2}(\widetilde\eta,\eta^{\prime}).
+$$
+Consequently, the approximate Bellman operator is the doubly projected
+composition
+$$
+  \Pi_{\phi,\xi,\ell_2}\Pi_c\T^\pi.
+$$
+
+\begin{lemma}{Bellman and categorical-projection bounds
+\cite[Lemmas 9.14--9.15]{bellemare2023distributional}}{}
+Let $\xi_\pi$ be a fully supported stationary distribution under $\pi$. For
+$\eta,\eta^{\prime}\in\mathcal M_{\ell_2,1}(\R)^\X$,
+$$
+  \ell_{\xi_\pi,2}(\T^\pi\eta,\T^\pi\eta^{\prime})
+  \leq
+  \sqrt{\gamma}\,\ell_{\xi_\pi,2}(\eta,\eta^{\prime}).
+$$
+Moreover, the pointwise categorical projection is nonexpansive:
+$$
+  \ell_{\xi_\pi,2}(\Pi_c\eta,\Pi_c\eta^{\prime})
+  \leq
+  \ell_{\xi_\pi,2}(\eta,\eta^{\prime}).
+$$
+\end{lemma}
+
+\begin{lemma}{Linear feature projection
+\cite[Lemma 9.16]{bellemare2023distributional}}{}
+For $\eta,\eta^{\prime}\in\mathcal F_{S,m}^{\X}$,
+$$
+  \ell_{\xi_\pi,2}
+  \left(
+    \Pi_{\phi,\xi_\pi,\ell_2}\eta,
+    \Pi_{\phi,\xi_\pi,\ell_2}\eta^{\prime}
+  \right)
+  \leq
+  \ell_{\xi_\pi,2}(\eta,\eta^{\prime}).
+$$
+\end{lemma}
+
+\begin{theorem}{Doubly projected categorical Bellman contraction
+\cite[Theorem 9.13]{bellemare2023distributional}}{}
+The operator
+$$
+  \Pi_{\phi,\xi_\pi,\ell_2}\Pi_c\T^\pi
+$$
+is a $\sqrt{\gamma}$-contraction in $\ell_{\xi_\pi,2}$. Therefore it has a
+unique fixed point in $\mathcal F_{\phi,S,m}$.
+\end{theorem}
+
+\begin{proof}
+The Bellman operator contributes the strict $\sqrt{\gamma}$ factor, while both
+projections are nonexpansive. Hence
+$$
+\begin{aligned}
+  &\ell_{\xi_\pi,2}
+  \left(
+    \Pi_{\phi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta,
+    \Pi_{\phi,\xi_\pi,\ell_2}\Pi_c\T^\pi\eta^{\prime}
+  \right)\\
+  &\quad\leq
+  \ell_{\xi_\pi,2}(\Pi_c\T^\pi\eta,\Pi_c\T^\pi\eta^{\prime})\\
+  &\quad\leq
+  \ell_{\xi_\pi,2}(\T^\pi\eta,\T^\pi\eta^{\prime})\\
+  &\quad\leq
+  \sqrt{\gamma}\,\ell_{\xi_\pi,2}(\eta,\eta^{\prime}).
+\end{aligned}
+$$
+Banach's fixed-point theorem gives existence and uniqueness of the fixed
+point.
+\end{proof}
+
+The signed family is an analytical device: it creates the affine geometry
+needed for an orthogonal Cram\'er projection. The actual categorical algorithm
+still represents probability distributions with nonnegative masses.
+
 \section{Distributional Approximate TD}
 
 The categorical TD learning is very similar to the scalar case, hence we focus on the quantile case and refer to \cite[Chapter 10]{bellemare2023distributional}. \\
@@ -970,7 +1127,7 @@ $$
     \varepsilon\KL(\pi\mid \mu\otimes\nu)
   \right\}.
 $$
-However, this version is not a metric anymore since for two measures that are the same, the regularized Wasserstein might be non zero. 
+However, this version is not a metric anymore since for two measures that are the same, the regularized Wasserstein might be non zero (and it does not fulfill the triangle ineqality). 
 This is why the paper uses what they call the debiased Sinkhorn divergence
 $$
   \overline W_{c,\varepsilon}(\mu,\nu)
@@ -979,9 +1136,6 @@ $$
   -\OT_c^\varepsilon(\mu,\mu)
   -\OT_c^\varepsilon(\nu,\nu).
 $$
-This is the doubled normalization used in the paper. The also common convention
-$\OT_c^\varepsilon(\mu,\nu)-\tfrac12\OT_c^\varepsilon(\mu,\mu)
--\tfrac12\OT_c^\varepsilon(\nu,\nu)$ differs only by a factor of two.
 While this solves the issue of it being non zero when both entries are the same, this still does not satisfy the triangle inequality. 
 \end{definition}
 
@@ -1066,8 +1220,8 @@ $$
     \widehat\eta_{\bar\omega}(x,a,r,x^{\prime})
   \right).
 $$
-The Sinkhorn algorithm gives a differentiable approximation to this quantity
-for empirical measures, which makes it usable as a neural-network loss.
+The Sinkhorn algorithm, which allows one to calculate the regularized Wasserstein distance between two measure with finite support, gives a differentiable approximation to this quantity, which makes it usable as a neural-network loss.
+The main downside of having to use this sinkhorn algorithm, is that it is computationally more expensive than standard losses and even the MMD one, but as we will it will also yield stronger result
 
 \begin{table}[ht]
   \centering
@@ -1079,7 +1233,7 @@ for empirical measures, which makes it usable as a neural-network loss.
     \textbf{Algorithm}
       & \textbf{Distribution divergence $d_p$}
       & \textbf{Representation $Z_\theta$}
-      & \textbf{Convergence rate of $\T^\pi$} \\
+      & \textbf{Contraction parameter of $\T^\pi$} \\
     \hline
     C51
       & Cram\'{e}r distance
@@ -1103,8 +1257,7 @@ for empirical measures, which makes it usable as a neural-network loss.
   \end{tabular}%
   }
   \caption{Distributional RL algorithms, their distribution representations,
-  and Bellman convergence rates. The sample-complexity column from the paper
-  is omitted.}
+  and Bellman convergence rates.}
   \label{tab:drl-divergence-comparison}
 \end{table}
 
@@ -1132,62 +1285,12 @@ kernel.
 \end{theorem}
 
 \begin{proof}
-We prove the large-regularization limit. Let
-$\pi_\varepsilon^{\mu,\nu}$ minimize
-$\OT_c^\varepsilon(\mu,\nu)$. Comparing it with the feasible product coupling
-$\mu\otimes\nu$ gives
-$$
-  \int c\,\mathrm d\pi_\varepsilon^{\mu,\nu}
-  +\varepsilon\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)
-  \leq \int c\,\mathrm d(\mu\otimes\nu).
-$$
-Assume $c$ is bounded on the support of the return distributions and write
-$K=\norm{c}_\infty$. Optimality and Pinsker's inequality give
-$$
-\begin{aligned}
-  \varepsilon\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)
-  &\leq
-  \int c\,\mathrm d(\mu\otimes\nu)
-  -\int c\,\mathrm d\pi_\varepsilon^{\mu,\nu}\\
-  &\leq 2K\norm{\pi_\varepsilon^{\mu,\nu}-\mu\otimes\nu}_{\mathrm{TV}}
-  \leq K\sqrt{2\KL(\pi_\varepsilon^{\mu,\nu}\mid\mu\otimes\nu)}.
-\end{aligned}
-$$
-Consequently, the KL term is $O(\varepsilon^{-2})$, so
-$\varepsilon\KL\to0$, and Pinsker also implies
-$\pi_\varepsilon^{\mu,\nu}\to\mu\otimes\nu$ in total variation. Therefore
-$$
-  \OT_c^\varepsilon(\mu,\nu)
-  \longrightarrow
-  \iint c(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy).
-$$
-The same argument applied to the two self-couplings gives
-$$
-\begin{aligned}
-  \overline W_{c,\varepsilon}(\mu,\nu)
-  \longrightarrow{}&
-  2\iint c(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy)\\
-  &-\iint c(x,x^{\prime})\,\mu(\mathrm dx)\mu(\mathrm dx^{\prime})
-  -\iint c(y,y^{\prime})\,\nu(\mathrm dy)\nu(\mathrm dy^{\prime}).
-\end{aligned}
-$$
-For $k_\alpha=-c$, this is exactly
-$$
-\begin{aligned}
-  &\iint k_\alpha(x,x^{\prime})\,\mu(\mathrm dx)\mu(\mathrm dx^{\prime})
-  +\iint k_\alpha(y,y^{\prime})\,\nu(\mathrm dy)\nu(\mathrm dy^{\prime})\\
-  &\qquad-2\iint k_\alpha(x,y)\,\mu(\mathrm dx)\nu(\mathrm dy)
-  =\MMD_{k_\alpha}^2(\mu,\nu).
-\end{aligned}
-$$
-Thus $\overline W_{c,\varepsilon}(\mu,\nu)$ converges to squared MMD as
-$\varepsilon\to\infty$.
+The proof can be found in \cite{genevay2018learning}, the main argument is treating it as a constraint problem and looking at the dual.
+  
 \end{proof}
+This, in a sense also shows that the sinkhornDLR paper is a strict generalization of the MMD paper. At least when taking the kernel to be $-c$.
 
-This is why the presentation treats SinkhornDRL as a bridge between
-Wasserstein-style distributional RL and MMD-DQN: it keeps a transport-based
-objective while making the empirical particle loss smooth enough for deep
-learning.
+Finally, we also report some of the results form \cite{sun2022regularized} on the Atari benchmark comparing the Sinkhorn method with both MMD and the classical C51 and quantile methods.
 
 \begin{figure}[ht]
   \centering
