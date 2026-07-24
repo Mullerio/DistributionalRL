@@ -530,6 +530,65 @@ $$
 $$
 \end{definition}
 
+With this, we have the problem that after a Bellman or even TD update, we might not live on $S$ anymore. Hence we need the following projection.
+
+\begin{definition}{Categorical projection $\Pi_c$}{}
+The Bellman update moves the fixed atoms because
+$$
+  (b_{r,\gamma})_\#\eta(x^{\prime})
+  =
+  \sum_{j=1}^m p_j(x^{\prime})
+  \delta_{r+\gamma\theta_j},
+  \qquad
+  b_{r,\gamma}(z)=r+\gamma z.
+$$
+In general, the shifted locations $r+\gamma\theta_j$ are not elements of the
+fixed support $S$. The categorical projection
+$\Pi_c:\mathcal P(\R)\to\mathcal P(S)$ is defined first on a Dirac mass. If
+$\theta_\ell\leq y\leq\theta_{\ell+1}$, then
+$$
+  \Pi_c\delta_y
+  =
+  \frac{\theta_{\ell+1}-y}{\theta_{\ell+1}-\theta_\ell}
+  \delta_{\theta_\ell}
+  +
+  \frac{y-\theta_\ell}{\theta_{\ell+1}-\theta_\ell}
+  \delta_{\theta_{\ell+1}}.
+$$
+Values outside the support are clipped to its endpoints:
+$$
+  \Pi_c\delta_y
+  =
+  \begin{cases}
+    \delta_{\theta_1}, & y\leq\theta_1,\\
+    \delta_{\theta_m}, & y\geq\theta_m.
+  \end{cases}
+$$
+The definition is extended linearly to discrete measures. Thus, if
+$\theta_\ell\leq r+\gamma\theta_j\leq\theta_{\ell+1}$, the mass
+$p_j(x^{\prime})$ contributes
+$$
+\begin{aligned}
+  \bar p_\ell
+  &\mathrel{+}=
+  p_j(x^{\prime})
+  \frac{\theta_{\ell+1}-(r+\gamma\theta_j)}
+       {\theta_{\ell+1}-\theta_\ell},\\
+  \bar p_{\ell+1}
+  &\mathrel{+}=
+  p_j(x^{\prime})
+  \frac{(r+\gamma\theta_j)-\theta_\ell}
+       {\theta_{\ell+1}-\theta_\ell}.
+\end{aligned}
+$$
+The projected categorical Bellman target is therefore
+$$
+  \Pi_c(b_{r,\gamma})_\#\eta(x^{\prime})
+  =
+  \sum_{i=1}^m\bar p_i\delta_{\theta_i}.
+$$
+\end{definition}
+
 \begin{figure}[ht]
   \centering
   \begin{minipage}[t]{0.48\linewidth}
@@ -680,7 +739,7 @@ $$
 $$
 \end{definition}
 
-There are two distinct approximation errors after a Bellman update. First,
+Now, there are two distinct approximation errors after a Bellman update. First,
 $(\T^\pi\eta)(x)$ need not be supported on $S$, so the categorical projection
 $\Pi_c$ moves its mass back to the fixed support. Second, even
 $\Pi_c\T^\pi\eta$ need not have probabilities that are linear in the features,
@@ -691,14 +750,13 @@ $$
   \arg\min_{\eta^{\prime}\in\mathcal F_{\phi,S,m}}
   \ell_{\xi,2}(\widetilde\eta,\eta^{\prime}).
 $$
-Consequently, the approximate Bellman operator is the doubly projected
-composition
+Consequently, the approximate Bellman operator we need to consider here is the double projection
 $$
   \Pi_{\phi,\xi,\ell_2}\Pi_c\T^\pi.
 $$
 
-\begin{lemma}{Bellman and categorical-projection bounds
-\cite[Lemmas 9.14--9.15]{bellemare2023distributional}}{}
+\begin{lemma}{Bellman and categorical bounds
+\cite[Lemma 9.14]{bellemare2023distributional}}{}
 Let $\xi_\pi$ be a fully supported stationary distribution under $\pi$. For
 $\eta,\eta^{\prime}\in\mathcal M_{\ell_2,1}(\R)^\X$,
 $$
@@ -714,7 +772,7 @@ $$
 $$
 \end{lemma}
 
-\begin{lemma}{Linear feature projection
+\begin{lemma}{Linear feature projection nonexpansive
 \cite[Lemma 9.16]{bellemare2023distributional}}{}
 For $\eta,\eta^{\prime}\in\mathcal F_{S,m}^{\X}$,
 $$
@@ -727,6 +785,8 @@ $$
   \ell_{\xi_\pi,2}(\eta,\eta^{\prime}).
 $$
 \end{lemma}
+
+With these two lemmas in hand, the final result will just be a simple combination of the obtained bounds which finally shows that the double projected Bellman operator is a contraction with the same $\sqrt{\gamma}$ constant as the original Bellman operator w.r.t to the cramer geometry.
 
 \begin{theorem}{Doubly projected categorical Bellman contraction
 \cite[Theorem 9.13]{bellemare2023distributional}}{}
@@ -759,10 +819,6 @@ $$
 Banach's fixed-point theorem gives existence and uniqueness of the fixed
 point.
 \end{proof}
-
-The signed family is an analytical device: it creates the affine geometry
-needed for an orthogonal Cram\'er projection. The actual categorical algorithm
-still represents probability distributions with nonnegative masses.
 
 \section{Distributional Approximate TD}
 
@@ -1300,6 +1356,8 @@ Finally, we also report some of the results form \cite{sun2022regularized} on th
   scores over training.}
   \label{fig:atari-comparison}
 \end{figure}
+
+\newpage
 
 \printbibliography
 
