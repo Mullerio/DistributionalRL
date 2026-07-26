@@ -1063,15 +1063,47 @@ Standard characteristic kernels on $\R^d$ include
   \text{Laplace:}\quad
   &k(x,y)=\exp\!\left(-\frac{\norm{x-y}}{\sigma}\right),\\
   \text{inverse quadratic:}\quad
-  &k(x,y)=\left(c^2+\norm{x-y}^2\right)^{-\beta},\\
-  \text{unrectified distance:}\quad
-  &k_\alpha(x,y)=-\norm{x-y}^{\alpha},\qquad 0<\alpha<2,
+  &k(x,y)=\left(c^2+\norm{x-y}^2\right)^{-\beta},
 \end{align*}
 where $\sigma,c,\beta>0$. By contrast, the linear kernel
 $k(x,y)=x^\top y$ is not characteristic.
 \end{example}
 
-Nguyen et al. define the state-action supremum metric as hinted at in the introduction 
+The papers \cite{nguyen2020moment,sun2022regularized} additionally use
+$$
+  k_\alpha(x,y)=-\norm{x-y}^{\alpha},
+  \qquad 0<\alpha<2,
+$$
+and call it an \emph{unrectified kernel}. 
+Despite this function not being a kernel, as it is not positive definite it still induces a MMD metric for probabilty measures. Which we show in the follwing. 
+\begin{theorem}{Unrectified Kernel induces MMD metric}{}
+  For $0<\alpha<2$, the function $k_\alpha$ is conditionally positive definite on coefficients whose sum is zero. Hence, for probability measures $\mu,\nu$,
+  $$
+    \MMD_{k_\alpha}^2(\mu,\nu)
+    =
+    -\E\norm{Z-Z^{\prime}}^{\alpha}-\E\norm{Y-Y^{\prime}}^{\alpha}+2\E\norm{Z-Y}^{\alpha}
+    \geq 0,
+  $$
+  where $Z,Z^{\prime}\sim\mu$ and $Y,Y^{\prime}\sim\nu$ are independent. In particular, $MMD_{k_\alpha}$ is a metric.
+\end{theorem}
+
+\begin{proof}
+  Part of this proof is adapted from \cite{sejdinovic2013equivalence}.
+  Firstly, one can show directly that 
+$$\sum_{i,j=1}^{N}\alpha_i \alpha_j \|x_i-x_j\| \leq 0$$
+for any $\alpha_i$ such that $\sum_{i=1}^{N}\alpha_i=0$. Hence,
+
+\end{proof}
+
+$k_\alpha$ is not
+positive-definite and hence not even a kernel in the classic sense. However, 
+$-\norm{x-y}^{\alpha}$ is conditionally positive definite on coefficients
+whose sum is zero. Since the difference $\mu-\nu$ of two probability measures
+has total mass zero, the associated MMD is nevertheless a metric. 
+As we will see below, characteristicness is also not required to prove the Bellman contraction
+as long as we have a kernel like function with two required properties.
+
+Additionally, Nguyen et al. define the state-action supremum metric as hinted at in the introduction 
 \cite{nguyen2020moment}
 $$
   \MMD_{\infty,k}(\eta,\nu)
@@ -1210,13 +1242,6 @@ $$
   \label{fig:sinkhorn-regularization}
 \end{figure}
 
-For $c(x,y)=\norm{x-y}^{\alpha}$, define the supremum divergence
-$$
-  \overline W^\infty_{c,\varepsilon}(\eta,\nu)
-  =
-  \sup_{x,a}
-  \overline W_{c,\varepsilon}(\eta(x,a),\nu(x,a)).
-$$
 \begin{theorem}{Reg. Wasserstein Bellman contraction, \cite[Theorem 4.1]{sun2022regularized}}{}
 Define
 $$
@@ -1308,12 +1333,17 @@ The main downside of having to use this sinkhorn algorithm, is that it is comput
       & Sinkhorn divergence
       & Samples
       & $\gamma^\alpha$ as $\varepsilon\to0$;
-        $\gamma^{\alpha/2}$ for $k_\alpha$ as $\varepsilon\to\infty$ \\
+        $\overline\Delta_\varepsilon(\gamma,\alpha)$ for
+        $0<\varepsilon<\infty$;
+        $\gamma^\alpha$ as $\varepsilon\to\infty$ \\
     \hline
   \end{tabular}%
   }
   \caption{Distributional RL algorithms, their distribution representations,
-  and Bellman convergence rates.}
+  and Bellman contraction factors. The MMD-DQN row concerns $\MMD_{k_\alpha}$,
+  whereas the doubled Sinkhorn divergence converges to
+  $\MMD_{k_\alpha}^2$ as $\varepsilon\to\infty$; squaring the MMD contraction
+  factor changes $\gamma^{\alpha/2}$ into $\gamma^\alpha$.}
   \label{tab:drl-divergence-comparison}
 \end{table}
 
