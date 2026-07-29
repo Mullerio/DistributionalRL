@@ -131,7 +131,7 @@
 These notes give an overview of some theoretical foundations behind approximation based distributional
 reinforcement learning and newer methods using differentiable metrics on probability measures. 
 We begin with linear value-function approximation in the standard scalar case, then we replace
-scalar values by return distributions and introduce the two classic representations, quantile and categorical, of probability distributions.
+scalar value functions by the entire return distribution and introduce the two classic representations used in this case, quantile and categorical, of probability distributions.
 Then, we go over how these representations can be used in function approximation using deep neural networks.
 Finally, we cover the recent research on distributional reinforcement learning using differentiable metrics on probability measures such as the MMD distances or Sinkhorn divergence.  
 \end{abstract}
@@ -290,42 +290,25 @@ $$
 $$
 \end{definition}
 
+For the theory of reinforcement learning particularly important, is that the Bellman operator is a contraction. This is again true for the distributional Bellman operator. However in this case, it is a contraction with respect to the Wasserstein distance.
+
 \begin{theorem}{Wasserstein contraction of the distributional Bellman operator}{}
 For $p\in[1,\infty]$, let
 $$
-  \overline w_p(\eta,\nu)
-  =\sup_{x\in\X}w_p(\eta(x),\nu(x)).
+  \overline W^\infty_p(\eta,\nu)
+  =
+  \sup_{x,a}
+  W_p(\eta(x,a),\nu(x,a)).
 $$
 Then
 $$
-  \overline w_p(\T^\pi\eta,\T^\pi\nu)
-  \leq\gamma\,\overline w_p(\eta,\nu).
+  \overline W^\infty_p(\T^\pi\eta,\T^\pi\nu)
+  \leq
+  \gamma\,\overline W^\infty_p(\eta,\nu).
 $$
 \end{theorem}
-
-\begin{proof}
-We give the coupling proof from \cite[Proposition 4.15]{bellemare2023distributional}
-for $p<\infty$. For each state $y$, take an optimal coupling
-$(Z(y),Z^{\prime}(y))$ of $\eta(y)$ and $\nu(y)$. Couple the two Bellman updates by
-using the same sampled action, reward, and next state in both. Conditional on
-$X=x$, the resulting pair
-$$
-  \widetilde Z=R+\gamma Z(X^{\prime}),
-  \qquad
-  \widetilde Z^{\prime}=R+\gamma Z^{\prime}(X^{\prime})
-$$
-is a valid coupling of $(\T^\pi\eta)(x)$ and $(\T^\pi\nu)(x)$. Therefore
-$$
-\begin{aligned}
- w_p^p((\T^\pi\eta)(x),(\T^\pi\nu)(x))
- &\leq \E[|\widetilde Z-\widetilde Z^{\prime}|^p\mid X=x]\\
- &=\gamma^p\E[|Z(X^{\prime})-Z^{\prime}(X^{\prime})|^p\mid X=x]\\
- &\leq\gamma^p\sup_{y\in\X}w_p^p(\eta(y),\nu(y)).
-\end{aligned}
-$$
-Taking the $p$th root and then the supremum over $x$ proves the claim. The
-$p=\infty$ case uses the same coupling and the essential supremum.
-\end{proof}
+As also covered earlier in the book, arbitrary distributions cannot be stored on the computer. Hence we need to find some finite dimensional parametrized approximation. 
+The two main representations are the following.
 
 \begin{definition}{Finite representations of return distributions}{}
 For a probability measure $\eta\in\p(\R)$, let
@@ -530,7 +513,59 @@ $$
 $$
 \end{definition}
 
-With this, we have the problem that after a Bellman or even TD update, we might not live on $S$ anymore. Hence we need the following projection.
+
+\begin{figure}[ht]
+  \centering
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \textbf{Categorical: fixed locations, learned masses}
+    $$\eta(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i}$$
+    \begin{tikzpicture}[x=0.62cm,y=1.0cm,>=Stealth,
+        every node/.style={font=\scriptsize}]
+      \draw[->] (-2.9,0) -- (2.9,0);
+      \draw[->] (-2.6,0) -- (-2.6,2.25);
+      \fill[gray!35,opacity=0.22]
+        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+        (2.1,0.35) (2.6,0.12)} -- (2.6,0) -- cycle;
+      \draw[gray!55,opacity=0.35,thick]
+        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+        (2.1,0.35) (2.6,0.12)};
+      \foreach \x/\h in {-2.0/0.25,-1.15/0.55,-0.25/1.65,0.55/1.35,1.35/0.75,2.1/0.35} {
+        \draw[very thick,blue!70!black] (\x,0) -- (\x,\h);
+        \fill[blue!70!black] (\x,\h) circle (1.7pt);
+      }
+    \end{tikzpicture}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \textbf{Quantile: equal masses, learned locations}
+    $$\eta(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)}$$
+    \begin{tikzpicture}[x=0.62cm,y=1.0cm,>=Stealth,
+        every node/.style={font=\scriptsize}]
+      \draw[->] (-2.9,0) -- (2.9,0);
+      \draw[->] (-2.6,0) -- (-2.6,2.25);
+      \fill[gray!35,opacity=0.22]
+        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+        (2.1,0.35) (2.6,0.12)} -- (2.6,0) -- cycle;
+      \draw[gray!55,opacity=0.35,thick]
+        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
+        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
+        (2.1,0.35) (2.6,0.12)};
+      \foreach \x in {-1.9,-1.2,-0.25,0.0,0.25,1.45} {
+        \draw[very thick,red!75!black] (\x,0) -- (\x,0.75);
+        \fill[red!75!black] (\x,0.75) circle (1.55pt);
+      }
+    \end{tikzpicture}
+  \end{minipage}
+  \caption{Comparison between categorical and quantile approximations.}
+  \label{fig:categorical-vs-quantile}
+\end{figure}
+With the categorical approximation, we have the problem that after a Bellman or even TD update, we might not live on $S$ anymore. Hence we need the following projection.
+
+
 
 \begin{definition}{Categorical projection $\Pi_c$}{}
 The Bellman update moves the fixed atoms because
@@ -588,56 +623,6 @@ $$
   \sum_{i=1}^m\bar p_i\delta_{\theta_i}.
 $$
 \end{definition}
-
-\begin{figure}[ht]
-  \centering
-  \begin{minipage}[t]{0.48\linewidth}
-    \centering
-    \textbf{Categorical: fixed locations, learned masses}
-    $$\eta(x)=\sum_{i=1}^m p_i(x)\delta_{\theta_i}$$
-    \begin{tikzpicture}[x=0.62cm,y=1.0cm,>=Stealth,
-        every node/.style={font=\scriptsize}]
-      \draw[->] (-2.9,0) -- (2.9,0);
-      \draw[->] (-2.6,0) -- (-2.6,2.25);
-      \fill[gray!35,opacity=0.22]
-        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
-        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
-        (2.1,0.35) (2.6,0.12)} -- (2.6,0) -- cycle;
-      \draw[gray!55,opacity=0.35,thick]
-        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
-        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
-        (2.1,0.35) (2.6,0.12)};
-      \foreach \x/\h in {-2.0/0.25,-1.15/0.55,-0.25/1.65,0.55/1.35,1.35/0.75,2.1/0.35} {
-        \draw[very thick,blue!70!black] (\x,0) -- (\x,\h);
-        \fill[blue!70!black] (\x,\h) circle (1.7pt);
-      }
-    \end{tikzpicture}
-  \end{minipage}\hfill
-  \begin{minipage}[t]{0.48\linewidth}
-    \centering
-    \textbf{Quantile: equal masses, learned locations}
-    $$\eta(x)=\frac1m\sum_{i=1}^m\delta_{\theta_i(x)}$$
-    \begin{tikzpicture}[x=0.62cm,y=1.0cm,>=Stealth,
-        every node/.style={font=\scriptsize}]
-      \draw[->] (-2.9,0) -- (2.9,0);
-      \draw[->] (-2.6,0) -- (-2.6,2.25);
-      \fill[gray!35,opacity=0.22]
-        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
-        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
-        (2.1,0.35) (2.6,0.12)} -- (2.6,0) -- cycle;
-      \draw[gray!55,opacity=0.35,thick]
-        plot[smooth] coordinates {(-2.6,0) (-2.0,0.25) (-1.2,0.65)
-        (-0.45,1.45) (0.0,1.85) (0.55,1.45) (1.2,0.85)
-        (2.1,0.35) (2.6,0.12)};
-      \foreach \x in {-1.9,-1.2,-0.25,0.0,0.25,1.45} {
-        \draw[very thick,red!75!black] (\x,0) -- (\x,0.75);
-        \fill[red!75!black] (\x,0.75) circle (1.55pt);
-      }
-    \end{tikzpicture}
-  \end{minipage}
-  \caption{Comparison between categorical and quantile approximations.}
-  \label{fig:categorical-vs-quantile}
-\end{figure}
 
 The quantile family instead parametrizes $\nu \in \mathcal{P}(\R)$ with
 cumulative distribution function $F_\nu$, through its quantile function by
@@ -1088,20 +1073,54 @@ Despite this function not being a kernel, as it is not positive definite it stil
 \end{theorem}
 
 \begin{proof}
-  Part of this proof is adapted from \cite{sejdinovic2013equivalence}.
+  Most of this proof is utilizing the theory from \cite{sejdinovic2013equivalence}.
   Firstly, one can show directly that 
-$$\sum_{i,j=1}^{N}\alpha_i \alpha_j \|x_i-x_j\| \leq 0$$
-for any $\alpha_i$ such that $\sum_{i=1}^{N}\alpha_i=0$. Hence,
+$$\sum_{i,j=1}^{N}\alpha_i \alpha_j \|x_i-x_j\|^2 \leq 0$$
+for any $(\alpha_i)$ with $\sum_{i=1}^{N}\alpha_i=0$. This is what \cite{sejdinovic2013equivalence} calls a negative type metric. 
+For this, in Proposition 3.1 they show that also $\|\cdot - \cdot\|^\alpha$ is a negative type metric for any $0<\alpha<2$.
+This implies that $k_\alpha$ is conditionally positive definite on coefficients whose sum is zero.
+Additionally, Lemma 12 of \cite{sejdinovic2013equivalence} shows that for any
+negative-type semimetric, the distance-induced function
+$$
+  k_{x_0}(x,y)
+  =
+  \frac12\left(
+    \norm{x-x_0}^\alpha
+    +\norm{y-x_0}^\alpha
+    -\norm{x-y}^\alpha
+  \right)
+$$
+is a valid kernel and hence induces an RKHS. Additonally, they show that this kernel is charactaristic and hence MMD is a metirc for this Kernel. 
+When writing out this MMD, we have 
+$$
+MMD_{k_{x_0}}^2(\mu,\nu) = \E k_{x_0}(Z,Z^\prime) + \E k_{x_0}(Y,Y^\prime) - 2\E k_{x_0}(Z,Y)
+$$  
+now when expanding the definiton of $k_{x_0}$, we have
+\begin{align*}
+  MMD_{k_{x_0}}^2(\mu,\nu)
+  &= \frac12\E \norm{Z-x_0}^\alpha
+   + \frac12\E \norm{Z^\prime-x_0}^\alpha
+   - \frac12\E \norm{Z-Z^\prime}^\alpha\\
+  &\quad+ \frac12\E \norm{Y-x_0}^\alpha
+   + \frac12\E \norm{Y^\prime-x_0}^\alpha
+   - \frac12\E \norm{Y-Y^\prime}^\alpha\\
+  &\quad-\E \norm{Z-x_0}^\alpha
+   -\E \norm{Y-x_0}^\alpha
+   +\E \norm{Z-Y}^\alpha\\
+  &= \frac12\left(
+     -\E \norm{Z-Z^\prime}^\alpha
+     -\E \norm{Y-Y^\prime}^\alpha
+     +2\E \norm{Z-Y}^\alpha
+     \right)\\
+  &= \frac12 MMD_{k_\alpha}^2(\mu,\nu)
+\end{align*}
 
-\end{proof}
+The expectations vanish because $Z$ and $Z^\prime$ are independent and identically distributed, hence $\E \norm{Z-x_0}^\alpha = \E \norm{Z^\prime-x_0}^\alpha$ and the same holds for $Y$ and $Y^\prime$.
+The factor two does not affect whether we have a metric or not, hence MMD with the negative type kernel is a metric.
+\end{proof} 
 
-$k_\alpha$ is not
-positive-definite and hence not even a kernel in the classic sense. However, 
-$-\norm{x-y}^{\alpha}$ is conditionally positive definite on coefficients
-whose sum is zero. Since the difference $\mu-\nu$ of two probability measures
-has total mass zero, the associated MMD is nevertheless a metric. 
-As we will see below, characteristicness is also not required to prove the Bellman contraction
-as long as we have a kernel like function with two required properties.
+As we will see below, characteristicness is not required to prove the Bellman contraction
+as long as we have a kernel like function with two required properties that also makes the MMD a metric. This is why taking a rectified kernel is justified. \\
 
 Additionally, Nguyen et al. define the state-action supremum metric as hinted at in the introduction 
 \cite{nguyen2020moment}
@@ -1110,7 +1129,6 @@ $$
   =
   \sup_{x,a}\MMD_k(\eta(x,a),\nu(x,a)).
 $$
-Sadly, the Bellman operator is not a contraction for arbitrary characteristic kernels, but we need some properties for them.
 
 \begin{theorem}{MMD Bellman contraction, \cite[Theorem 2]{nguyen2020moment}}{}
 Assume that $k=\sum_{i\in I}c_i k_i$ where $c_i\geq0$ and every $k_i$ has the following two properties. Firstly, it is translation invariant,
@@ -1138,24 +1156,6 @@ In particular, the unrectified distance kernel $k_\alpha$ satisfies the assumpti
 $$
 k_\sigma(\gamma x,\gamma y)=\exp\left(-\frac{\norm{\gamma x-\gamma y}^2}{2\sigma^2}\right)=\exp\left(-\frac{\gamma^2\norm{x-y}^2}{2\sigma^2}\right)\neq \gamma^{\alpha/2}k_\sigma(x,y)
 $$
-
-\begin{theorem}{Particle approximation rate
-\cite[Theorem 3]{nguyen2020moment}}{}
-Let $P\in\p(\R^d)$ and choose $n$ particles that minimize the MMD to $P$:
-$$
-  P_n=\frac1n\sum_{i=1}^n\delta_{x_i},
-  \qquad
-  (x_i)_{i=1}^n\in\arg\min_{(\widetilde x_i)_{i=1}^n}
-  \MMD_k\left(\frac1n\sum_{i=1}^n\delta_{\widetilde x_i},P\right).
-$$
-For every $h$ in the unit ball of the corresponding RKHS,
-$$
-  \left|\int h\,\mathrm dP_n-\int h\,\mathrm dP\right|=O(n^{-1/2}).
-$$
-This rate is independent of the ambient dimension; the paper contrasts it with
-the usual $O(n^{-1/d})$ empirical $1$-Wasserstein rate when $d>2$.
-\end{theorem}
-
 
 With the contraction result in hand we can now straight forwardly define the particle DQN method. 
 For a transition $(x,a,r,x^{\prime})$ and target-network parameters
@@ -1190,7 +1190,7 @@ $$
 
 and this can be differentiated through autograd with respect to the parameters of our networks that produced the samples. \\
 
-Suprisingly and disagreeing with the theory, we have better empirical performance when we choose the gaussian kernel which means that a distance performs well under which the Bellman Operator is not a contraction. 
+Suprisingly and disagreeing with the theory, \cite{nguyen2020moment} have better empirical performance when we choose the gaussian kernel which means that a distance performs well under which the Bellman Operator is not a contraction. 
 \subsection{SinkhornDRL}
 
 As already stated, the Wasserstein distance is not a differentaible metric. This paper \cite{sun2022regularized} uses a regularized version which makes it work. 
@@ -1301,8 +1301,8 @@ $$
     \widehat\eta_{\bar\omega}(x,a,r,x^{\prime})
   \right).
 $$
-The Sinkhorn algorithm, which allows one to calculate the regularized Wasserstein distance between two measure with finite support, gives a differentiable approximation to this quantity, which makes it usable as a neural-network loss.
-The main downside of having to use this sinkhorn algorithm, is that it is computationally more expensive than standard losses and even the MMD one, but as we will it will also yield stronger result
+The Sinkhorn algorithm, which allows one to calculate the regularized Wasserstein distance between two measure with finite support, gives a differentiable approximation to this, which makes it usable as a loss.
+The main downside of having to use this sinkhorn algorithm, is that it is computationally more expensive than standard losses and even the MMD one, but as we will it will also yield stronger result.
 
 \begin{table}[ht]
   \centering
@@ -1339,11 +1339,7 @@ The main downside of having to use this sinkhorn algorithm, is that it is comput
     \hline
   \end{tabular}%
   }
-  \caption{Distributional RL algorithms, their distribution representations,
-  and Bellman contraction factors. The MMD-DQN row concerns $\MMD_{k_\alpha}$,
-  whereas the doubled Sinkhorn divergence converges to
-  $\MMD_{k_\alpha}^2$ as $\varepsilon\to\infty$; squaring the MMD contraction
-  factor changes $\gamma^{\alpha/2}$ into $\gamma^\alpha$.}
+  \caption{Overview of the Distributional RL algorithms we discussed here. (Table is taken from \cite{sun2022regularized}.)}
   \label{tab:drl-divergence-comparison}
 \end{table}
 
